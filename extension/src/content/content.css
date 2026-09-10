@@ -1,0 +1,5 @@
+.cm-pilot-target {
+  outline: 3px solid #7c5cff !important;
+  outline-offset: 4px !important;
+  box-shadow: 0 0 0 7px rgb(124 92 255 / 18%) !important;
+}

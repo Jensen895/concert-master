@@ -1,0 +1,10 @@
+{
+  "name": "concert-master-extension",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Manifest V3 tixCraft extension pilot",
+  "scripts": {
+    "test": "node --test test/*.test.cjs",
+    "check": "node --check src/shared/core.js && node --check src/adapters/tixcraft-v1.js && node --check src/content/content.js && node --check src/background/service-worker.js && node --check src/popup/popup.js && node --test test/*.test.cjs"
+  }
+}

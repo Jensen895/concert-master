@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Concert Master</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main>
+      <header class="app-header">
+        <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="brand-copy">
+          <h1>Concert Master</h1>
+          <p>tixCraft extension pilot</p>
+        </div>
+        <span id="statusPill" class="status-pill off"><i></i><span>Off</span></span>
+      </header>
+
+      <section id="sessionBanner" class="session-banner hidden" aria-live="polite">
+        <div>
+          <span class="eyebrow">Armed session</span>
+          <strong id="sessionState">Waiting</strong>
+        </div>
+        <span id="sessionTimer" class="timer">--:--</span>
+      </section>
+
+      <section class="section mode-section">
+        <div class="section-heading">
+          <div><span class="step">01</span><h2>Operating mode</h2></div>
+        </div>
+        <div class="segmented" role="radiogroup" aria-label="Operating mode">
+          <button type="button" data-mode="off">Off</button>
+          <button type="button" data-mode="dryRun">Dry run</button>
+          <button type="button" data-mode="assist" class="selected">Assist</button>
+          <button type="button" data-mode="boundedAuto">Auto</button>
+        </div>
+        <p id="modeNote" class="note">Highlights and focuses the exact target. You activate it.</p>
+      </section>
+
+      <section class="section">
+        <div class="section-heading">
+          <div><span class="step">02</span><h2>Target</h2></div>
+          <span id="siteBadge" class="site-badge checking">Checking tab…</span>
+        </div>
+        <label class="field">
+          <span>Event label</span>
+          <input id="eventLabel" autocomplete="off" placeholder="Artist / event name">
+        </label>
+        <label class="field">
+          <span>Performance label</span>
+          <input id="performanceLabel" autocomplete="off" placeholder="2026/09/20 19:30">
+        </label>
+        <div class="field-grid">
+          <label class="field">
+            <span>Quantity</span>
+            <select id="quantity">
+              <option>1</option><option selected>2</option><option>3</option><option>4</option>
+              <option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Maximum / ticket</span>
+            <span class="money-input"><b>NT$</b><input id="maximumPrice" inputmode="numeric" placeholder="4,800"></span>
+          </label>
+        </div>
+        <div class="locked-choice"><span>Seat assignment</span><strong>Best Available</strong><i>Locked</i></div>
+      </section>
+
+      <section class="section">
+        <div class="section-heading">
+          <div><span class="step">03</span><h2>Area priority</h2></div>
+          <button id="addArea" type="button" class="text-button">+ Add</button>
+        </div>
+        <p class="note compact">Exact labels by default. Use <code>*</code> or <code>?</code> only when needed.</p>
+        <div id="areaList" class="area-list"></div>
+        <label class="toggle-row">
+          <span><strong>Allow lower priorities</strong><small>Otherwise the first unavailable choice pauses.</small></span>
+          <input id="allowFallback" type="checkbox" checked><i></i>
+        </label>
+      </section>
+
+      <section class="section">
+        <div class="section-heading">
+          <div><span class="step">04</span><h2>Ticket & permission</h2></div>
+        </div>
+        <label class="field">
+          <span>Ticket types, in priority order</span>
+          <input id="ticketTypes" autocomplete="off" placeholder="全票, 一般票">
+        </label>
+        <label class="toggle-row danger-toggle">
+          <span><strong>Allow one reservation submit</strong><small>Stops at a held cart. Never enters payment.</small></span>
+          <input id="submitReservation" type="checkbox"><i></i>
+        </label>
+        <label class="field compact-field">
+          <span>Session expires after</span>
+          <select id="duration">
+            <option value="5">5 minutes</option>
+            <option value="10" selected>10 minutes</option>
+            <option value="15">15 minutes</option>
+            <option value="30">30 minutes</option>
+          </select>
+        </label>
+      </section>
+
+      <section id="reviewPanel" class="review-panel hidden" aria-live="polite">
+        <div class="review-title"><span>Review</span><b id="reviewState">Known state</b></div>
+        <div id="reviewBody"></div>
+        <label id="confirmAreaRow" class="confirm-row hidden">
+          <input id="confirmArea" type="checkbox">
+          <span>I confirm this resolved section and price.</span>
+        </label>
+      </section>
+
+      <div id="errorBox" class="error-box hidden" role="alert"></div>
+
+      <footer>
+        <button id="reviewButton" type="button" class="secondary-button">Review current page</button>
+        <button id="armButton" type="button" class="primary-button">Arm Assist</button>
+        <button id="authorizeButton" type="button" class="primary-button hidden">Authorize & resume</button>
+        <button id="resumeButton" type="button" class="secondary-button hidden">Resume</button>
+        <button id="stopButton" type="button" class="stop-button hidden">Stop now</button>
+      </footer>
+      <p class="safety-footer"><span>⌘⇧.</span> always stops · No reloads · No CAPTCHA · No payment</p>
+    </main>
+
+    <template id="areaRowTemplate">
+      <div class="area-row">
+        <span class="drag" aria-hidden="true">⠿</span>
+        <span class="rank"></span>
+        <label><span>Label</span><input data-field="displayLabel" placeholder="A2"></label>
+        <label><span>Pattern</span><input data-field="namePattern" placeholder="A2"></label>
+        <label class="area-price"><span>Cap</span><input data-field="maximumUnitPriceTwd" inputmode="numeric" placeholder="Any"></label>
+        <div class="row-actions">
+          <button type="button" data-action="up" title="Move up">↑</button>
+          <button type="button" data-action="down" title="Move down">↓</button>
+          <button type="button" data-action="remove" title="Remove">×</button>
+        </div>
+      </div>
+    </template>
+
+    <script src="../shared/core.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

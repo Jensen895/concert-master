@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Concert Master DOM fixture runner</title>
+    <style>
+      body { font: 14px system-ui; padding: 24px; }
+      #fixture { position: absolute; left: -10000px; width: 800px; }
+      button, a, select, input, label { display: inline-block; min-width: 20px; min-height: 20px; }
+      .pass { color: #087a35; } .fail { color: #b42318; }
+    </style>
+    <script src="../src/shared/core.js"></script>
+    <script src="../src/adapters/tixcraft-v1.js"></script>
+    <script defer src="dom-fixture-runner.js"></script>
+  </head>
+  <body>
+    <h1>DOM fixture results</h1>
+    <ol id="results"></ol>
+    <div id="fixture"></div>
+  </body>
+</html>

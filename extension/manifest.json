@@ -1,0 +1,53 @@
+{
+  "manifest_version": 3,
+  "name": "Concert Master — tixCraft Pilot",
+  "version": "0.1.0",
+  "description": "A local, bounded tixCraft purchase assistant with strict safety handoffs.",
+  "minimum_chrome_version": "116",
+  "incognito": "not_allowed",
+  "permissions": [
+    "activeTab",
+    "alarms",
+    "notifications",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://tixcraft.com/*",
+    "https://www.tixcraft.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background/service-worker.js"
+  },
+  "action": {
+    "default_title": "Concert Master",
+    "default_popup": "src/popup/popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://tixcraft.com/*",
+        "https://www.tixcraft.com/*"
+      ],
+      "css": ["src/content/content.css"],
+      "js": [
+        "src/shared/core.js",
+        "src/adapters/tixcraft-v1.js",
+        "src/content/content.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+  "commands": {
+    "stop-session": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Period"
+      },
+      "description": "Immediately stop Concert Master"
+    }
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'"
+  }
+}

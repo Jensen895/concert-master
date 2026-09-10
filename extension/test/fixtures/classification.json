@@ -1,0 +1,148 @@
+[
+  {
+    "name": "unique actionable performance",
+    "snapshot": {
+      "routeKind": "performance",
+      "layoutSignature": "performance-v1",
+      "eventLabel": "Aurora Taipei",
+      "performances": [{ "key": "performance:1", "label": "2026/09/20 19:30", "visible": true, "enabled": true }]
+    },
+    "expected": { "kind": "action", "state": "performanceSelection", "actionType": "selectPerformance" }
+  },
+  {
+    "name": "performance not yet open",
+    "snapshot": {
+      "routeKind": "performance",
+      "layoutSignature": "performance-v1",
+      "eventLabel": "Aurora Taipei",
+      "performances": [{ "key": "performance:1", "label": "2026/09/20 19:30", "visible": true, "enabled": false }]
+    },
+    "expected": { "kind": "wait", "state": "performanceWaiting" }
+  },
+  {
+    "name": "challenge always hands off",
+    "snapshot": {
+      "routeKind": "ticket",
+      "layoutSignature": "ticket-v1",
+      "eventLabel": "Aurora Taipei",
+      "signals": { "challenge": true },
+      "tickets": [{ "key": "ticket:1", "label": "全票", "visible": true, "enabled": true, "selectedQuantity": 0, "options": [{ "value": "2", "quantity": 2, "enabled": true }] }]
+    },
+    "expected": { "kind": "handoff", "state": "handoff" }
+  },
+  {
+    "name": "visible block always stops",
+    "snapshot": {
+      "routeKind": "performance",
+      "layoutSignature": "performance-v1",
+      "eventLabel": "Aurora Taipei",
+      "signals": { "blocked": true }
+    },
+    "expected": { "kind": "stop", "state": "unknown" }
+  },
+  {
+    "name": "graphical seat map always hands off",
+    "snapshot": {
+      "routeKind": "area",
+      "layoutSignature": "area-v1",
+      "eventLabel": "Aurora Taipei",
+      "signals": { "seatMap": true }
+    },
+    "expected": { "kind": "handoff", "state": "handoff" }
+  },
+  {
+    "name": "best available is uniquely selected",
+    "snapshot": {
+      "routeKind": "area",
+      "layoutSignature": "area-v1",
+      "eventLabel": "Aurora Taipei",
+      "seatModes": [{ "key": "seat:auto", "label": "電腦配位", "selected": false, "visible": true, "enabled": true }]
+    },
+    "expected": { "kind": "action", "state": "seatMode", "actionType": "selectSeatMode" }
+  },
+  {
+    "name": "first valid configured area wins",
+    "snapshot": {
+      "routeKind": "area",
+      "layoutSignature": "area-v1",
+      "eventLabel": "Aurora Taipei",
+      "areas": [
+        { "key": "area:a2", "label": "A2", "priceTwd": 5200, "visible": true, "enabled": true, "soldOut": false, "ineligible": false },
+        { "key": "area:a3", "label": "A3", "priceTwd": 4500, "visible": true, "enabled": true, "soldOut": false, "ineligible": false },
+        { "key": "area:b1", "label": "B1", "priceTwd": 3800, "visible": true, "enabled": true, "soldOut": false, "ineligible": false }
+      ]
+    },
+    "expected": { "kind": "action", "state": "areaSelection", "actionType": "selectArea", "targetKey": "area:a3" }
+  },
+  {
+    "name": "ambiguous area never acts",
+    "snapshot": {
+      "routeKind": "area",
+      "layoutSignature": "area-v1",
+      "eventLabel": "Aurora Taipei",
+      "areas": [
+        { "key": "area:a2-left", "label": "A2", "priceTwd": 4800, "visible": true, "enabled": true },
+        { "key": "area:a2-right", "label": "A2", "priceTwd": 4800, "visible": true, "enabled": true }
+      ]
+    },
+    "expected": { "kind": "handoff", "state": "handoff" }
+  },
+  {
+    "name": "approved ticket quantity is selected",
+    "snapshot": {
+      "routeKind": "ticket",
+      "layoutSignature": "ticket-v1",
+      "eventLabel": "Aurora Taipei",
+      "tickets": [{ "key": "ticket:full", "label": "全票", "visible": true, "enabled": true, "selectedQuantity": 0, "options": [{ "value": "0", "quantity": 0, "enabled": true }, { "value": "2", "quantity": 2, "enabled": true }] }]
+    },
+    "expected": { "kind": "action", "state": "ticketSelection", "actionType": "setQuantity" }
+  },
+  {
+    "name": "reservation becomes ready only after quantity selection",
+    "snapshot": {
+      "routeKind": "ticket",
+      "layoutSignature": "ticket-v1",
+      "eventLabel": "Aurora Taipei",
+      "tickets": [{ "key": "ticket:full", "label": "全票", "visible": true, "enabled": true, "selectedQuantity": 2, "options": [{ "value": "2", "quantity": 2, "enabled": true }] }],
+      "submits": [{ "key": "submit:1", "label": "確認張數", "visible": true, "enabled": true }]
+    },
+    "expected": { "kind": "action", "state": "reservationReady", "actionType": "submitReservation" }
+  },
+  {
+    "name": "held cart ends automation",
+    "snapshot": {
+      "routeKind": "order",
+      "layoutSignature": "order-v1",
+      "eventLabel": "Aurora Taipei"
+    },
+    "expected": { "kind": "cart", "state": "cartHeld" }
+  },
+  {
+    "name": "unknown layout always stops",
+    "snapshot": {
+      "routeKind": "unknown",
+      "eventLabel": "Aurora Taipei"
+    },
+    "expected": { "kind": "stop", "state": "unknown" }
+  },
+  {
+    "name": "event mismatch always stops",
+    "snapshot": {
+      "routeKind": "performance",
+      "layoutSignature": "performance-v1",
+      "eventLabel": "Different Event",
+      "performances": [{ "key": "performance:1", "label": "2026/09/20 19:30", "visible": true, "enabled": true }]
+    },
+    "expected": { "kind": "stop", "state": "unknown" }
+  },
+  {
+    "name": "event detail opens its unique performance list",
+    "snapshot": {
+      "routeKind": "detail",
+      "layoutSignature": "detail-v1",
+      "eventLabel": "Aurora Taipei",
+      "entries": [{ "key": "event:1", "label": "立即購票", "visible": true, "enabled": true }]
+    },
+    "expected": { "kind": "action", "state": "eventDetail", "actionType": "openPerformances" }
+  }
+]

@@ -1,42 +1,49 @@
 # Concert Master
 
-Concert Master is a macOS 15 menu-bar app skeleton for user-authorized ticket-page monitoring. It establishes the UI, application/service boundaries, a secure local profile repository, and a backend HTTP contract without implementing page analysis or automation yet.
+Concert Master is a local, safety-bounded Chrome extension pilot for the ordinary tixCraft purchase flow. It observes one visible tab and can move through a fixture-backed flow from performance selection to a held cart. It never reloads the site, makes background tixCraft requests, handles verification, or enters payment data.
 
-## What is included
+The existing macOS app and Node service remain in this repository as legacy scaffolds. Neither is in the extension runtime path.
 
-- A background-style SwiftUI menu-bar app with a configuration window
-- A global `Command + Option + T` monitoring toggle
-- Selected-window and frontmost-app monitoring modes
-- Screen Recording and Accessibility permission status UI
-- A profile form for country, ID number, date of birth, first name, and last name
-- Keychain-backed local profile storage
-- Client protocols for CAPTCHA detection, question detection, and text-input planning
-- A dependency-free Node.js backend skeleton and OpenAPI contract
+## Run the extension
 
-The current monitoring and automation services are intentionally inert. CAPTCHA support is detection-only; solving or bypassing challenges is outside the design. Text entry is planned as a local, user-controlled accessibility action.
+1. Open `chrome://extensions` in Google Chrome on macOS.
+2. Enable **Developer mode**.
+3. Choose **Load unpacked** and select the [`extension`](extension/) directory.
+4. Open the event's `https://tixcraft.com/activity/detail/<event-id>` page and open Concert Master.
+5. Enter the event, exact performance, ordered areas, ticket types, quantity, and price cap.
+6. Review the current page, choose Dry Run or Assist first, and arm the session.
 
-## Open the app
+Bounded Auto is scoped to the current tab and expires after at most 30 minutes. If real area choices are not visible when the session is first armed, it pauses at the area page so the resolved label and price can be confirmed before selection. Reservation submission is a separate, off-by-default permission.
 
-1. Open `ConcertMaster/ConcertMaster.xcodeproj` in Xcode 16 or newer.
-2. Select the `ConcertMaster` scheme and a local Mac destination.
-3. Build and run.
+Use **Command + Shift + .** to stop immediately. Chrome allows this shortcut to be changed at `chrome://extensions/shortcuts`.
 
-The target deployment version is macOS 15.0. The app is configured as a menu-bar agent (`LSUIElement`) so it does not remain in the Dock.
+## Safety boundary
 
-## Validate from the command line
+- One session, one visible tab, one event, one action at a time.
+- Exact event and performance matching; anchored area patterns with unique-match enforcement.
+- Best Available only. Graphical seat maps always hand off.
+- No reloads, polling requests, private endpoints, CAPTCHA processing, identity/OTP automation, terms acceptance, or payment inspection.
+- Every dispatch has a unique action ID and must reach an explicit postcondition within eight seconds.
+- Unknown layouts, adapter mismatch, blocks, ambiguous controls, stale targets, and origin changes fail closed.
+- Session state lives in `chrome.storage.session`. Local telemetry is bounded and redacted.
 
-The included Swift package mirrors the app source tree for lightweight compiler checks:
+## Validate
+
+The extension has no build step or third-party runtime dependencies. With Node.js 20 or newer:
+
+```sh
+cd extension
+npm test
+npm run check
+```
+
+Tests exercise normalized matching, price limits, priority/fallback behavior, protected states, duplicate ambiguity, postconditions, and the versioned classification fixtures in [`extension/test/fixtures/classification.json`](extension/test/fixtures/classification.json).
+
+The legacy components retain their original commands:
 
 ```sh
 swift build
+cd backend && npm test
 ```
 
-The backend uses only built-in Node.js modules:
-
-```sh
-cd backend
-npm test
-npm start
-```
-
-See `docs/ARCHITECTURE.md` for the layer boundaries and the next implementation steps.
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`extension/README.md`](extension/README.md) for implementation details and the fixture promotion process.
