@@ -4,7 +4,7 @@
   const Core = root.ConcertMasterCore;
   const elements = Object.fromEntries([
     "statusPill", "sessionBanner", "sessionState", "sessionTimer", "modeNote", "siteBadge",
-    "eventLabel", "performanceLabel", "quantity", "maximumPrice", "areaList", "addArea",
+    "showDate", "quantity", "maximumPrice", "areaList", "addArea",
     "allowFallback", "ticketTypes", "submitReservation", "duration", "reviewPanel", "reviewState",
     "reviewBody", "confirmAreaRow", "confirmArea", "errorBox", "reviewButton", "armButton",
     "authorizeButton", "resumeButton", "stopButton", "areaRowTemplate"
@@ -71,8 +71,7 @@
 
   function readTarget() {
     return {
-      eventLabel: elements.eventLabel.value,
-      performanceLabel: elements.performanceLabel.value,
+      showDate: elements.showDate.value,
       quantity: Number(elements.quantity.value),
       seatMode: "bestAvailable",
       areaPriorities: [...elements.areaList.children].map((row) => ({
@@ -118,8 +117,7 @@
   }
 
   function populate(target = {}) {
-    elements.eventLabel.value = target.eventLabel || "";
-    elements.performanceLabel.value = target.performanceLabel || "";
+    elements.showDate.value = Core.calendarDateKey(target.showDate || target.performanceLabel);
     elements.quantity.value = String(target.quantity || 2);
     elements.maximumPrice.value = target.maximumUnitPriceTwd || "";
     elements.ticketTypes.value = (target.ticketTypePriorities || []).join(", ");
@@ -191,10 +189,11 @@
     elements.reviewPanel.classList.remove("hidden");
     elements.reviewState.textContent = preview.decision?.state || preview.snapshot?.routeKind || "Unknown";
     elements.reviewBody.append(reviewLine("Adapter", preview.adapterVersion || "Unavailable", preview.ok ? "good" : "warn"));
-    const eventLabels = preview.snapshot?.eventLabels?.length
-      ? preview.snapshot.eventLabels.join(" · ")
-      : preview.snapshot?.eventLabel || "Not verified";
-    elements.reviewBody.append(reviewLine("Visible event", eventLabels, preview.snapshot?.eventLabel ? "good" : "warn"));
+    elements.reviewBody.append(reviewLine(
+      "Event page",
+      preview.snapshot?.eventId || "Not verified",
+      preview.snapshot?.eventId ? "good" : "warn"
+    ));
     if (preview.decision?.actionType) {
       elements.reviewBody.append(reviewLine("Proposed action", preview.decision.actionType, "good"));
     }
@@ -222,7 +221,7 @@
     }
     if (preview.snapshot?.performances?.length && preview.decision?.kind === "stop") {
       for (const performance of preview.snapshot.performances) {
-        elements.reviewBody.append(reviewLine("Visible performance", performance.label, "warn"));
+        elements.reviewBody.append(reviewLine("Visible performance", performance.label || performance.showDate, "warn"));
       }
     }
     const resolved = preview.areaPlan?.status === "resolved" && preview.areaAuthorization;
@@ -280,6 +279,7 @@
       type: "ARM_REQUEST",
       mode: ui.mode,
       target: validation.value,
+      reviewedEventId: ui.preview?.snapshot?.eventId,
       durationMinutes: Number(elements.duration.value),
       allowAreaFallback: elements.allowFallback.checked,
       inventoryAttemptCap: 3,
@@ -363,8 +363,10 @@
     elements.allowFallback.checked = defaults.allowAreaFallback !== false;
     elements.submitReservation.checked = Boolean(ui.session?.permissions?.submitReservation);
     setMode(ui.session?.mode || defaults.mode || Core.MODES.ASSIST);
-    const supported = Core.allowedOrigin(response.tab?.url || "");
-    elements.siteBadge.textContent = supported ? "tixCraft ready" : "Open tixCraft";
+    const identity = Core.tixcraftPageIdentity(response.tab?.url || "");
+    const supported = Core.allowedOrigin(response.tab?.url || "")
+      && Boolean(ui.session || (identity.routeKind === "detail" && identity.eventId));
+    elements.siteBadge.textContent = supported ? "tixCraft ready" : "Open event detail";
     elements.siteBadge.className = `site-badge ${supported ? "ready" : "error"}`;
     renderSession();
     wireEvents();

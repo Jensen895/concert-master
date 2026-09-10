@@ -2,7 +2,7 @@
 
 This directory is a load-unpacked Manifest V3 extension. It ships as plain JavaScript and CSS so the reviewed source is exactly what Chrome executes.
 
-Start a session on the event's `/activity/detail/<event-id>` page. The adapter verifies the event title there and opens the unique enabled performance-list control before matching the configured performance.
+Start a session on the event's `/activity/detail/<event-id>` page. The adapter captures the event ID from that URL, opens the unique enabled performance list, and selects the unique “Find tickets” row whose calendar date matches the configured show date. The performance list may appear inline or on `/activity/game/<event-id>`.
 
 ## Layout
 
@@ -31,7 +31,7 @@ The effective cap is the lower of the overall cap and the preference-specific ca
 
 ## Deliberate limitations
 
-The adapter stops when it cannot verify the event label or a supported structural signature. This is intentional: a site redesign must become a reviewed fixture and a new adapter version, not an increasingly broad selector. The pilot never reads or logs full page HTML and contains no network client for tixCraft.
+The adapter stops when it cannot verify the event ID from the purchase-flow URL, uniquely resolve the selected show date, or recognize a supported structural signature. This is intentional: a site redesign must become a reviewed fixture and a new adapter version, not an increasingly broad selector. The pilot never reads or logs full page HTML and contains no network client for tixCraft.
 
 Use Dry Run against sanitized fixtures before relying on a selector update. The included tests require Node.js 20+ and use only its built-in test runner.
 

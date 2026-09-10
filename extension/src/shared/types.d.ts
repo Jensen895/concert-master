@@ -9,8 +9,10 @@ export interface AreaPreference {
 }
 
 export interface TicketTarget {
-  eventLabel: string;
-  performanceLabel: string;
+  /** ISO calendar date selected by the user (YYYY-MM-DD). */
+  showDate: string;
+  /** Captured from the detail-page URL when the session is armed. */
+  eventId?: string;
   quantity: number;
   seatMode: "bestAvailable";
   areaPriorities: AreaPreference[];

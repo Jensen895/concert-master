@@ -58,6 +58,44 @@
     return normalizeLabel(value).toLocaleLowerCase("zh-Hant-TW");
   }
 
+  function calendarDateKey(value) {
+    const text = normalizeLabel(value);
+    const match = text.match(/(?:^|[^0-9])(\d{4})\s*(?:[./-]|年)\s*(\d{1,2})\s*(?:[./-]|月)\s*(\d{1,2})(?:\s*日)?(?![0-9])/u);
+    if (!match) return "";
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return "";
+    return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+
+  function tixcraftPageIdentity(url) {
+    try {
+      const parsed = new URL(url);
+      const parts = parsed.pathname.split("/").filter(Boolean);
+      const decode = (value) => {
+        try {
+          return decodeURIComponent(value || "");
+        } catch {
+          return "";
+        }
+      };
+      if (parts[0] === "activity" && ["detail", "game"].includes(parts[1])) {
+        return { routeKind: parts[1] === "detail" ? "detail" : "performance", eventId: decode(parts[2]) };
+      }
+      if (parts[0] === "ticket" && ["area", "ticket"].includes(parts[1])) {
+        return { routeKind: parts[1], eventId: decode(parts[2]) };
+      }
+      if ((parts[0] === "ticket" && parts[1] === "order") || (parts[0] === "order" && parts[1] === "confirm")) {
+        return { routeKind: "order", eventId: "" };
+      }
+    } catch {
+      // Invalid URLs are handled by the caller's existing fail-closed path.
+    }
+    return { routeKind: "unknown", eventId: "" };
+  }
+
   function parseTwd(value) {
     if (typeof value === "number") {
       return Number.isFinite(value) && value >= 0 ? Math.round(value) : null;
@@ -98,8 +136,9 @@
 
   function sanitizeTarget(raw) {
     const target = raw && typeof raw === "object" ? raw : {};
-    const eventLabel = normalizeLabel(target.eventLabel);
-    const performanceLabel = normalizeLabel(target.performanceLabel);
+    const rawShowDate = normalizeLabel(target.showDate || target.performanceLabel);
+    const showDate = calendarDateKey(rawShowDate);
+    const eventId = normalizeLabel(target.eventId);
     const quantity = finiteInteger(target.quantity, 1, 10);
     const maximumUnitPriceTwd = target.maximumUnitPriceTwd === "" || target.maximumUnitPriceTwd == null
       ? undefined
@@ -119,10 +158,9 @@
       : [];
 
     const errors = [];
-    if (!eventLabel) errors.push("Event label is required.");
-    if (eventLabel.length > 200) errors.push("Event label is too long.");
-    if (!performanceLabel) errors.push("Performance label is required.");
-    if (performanceLabel.length > 200) errors.push("Performance label is too long.");
+    if (!rawShowDate) errors.push("Show date is required.");
+    else if (!showDate) errors.push("Show date must be a valid calendar date.");
+    if (eventId.length > 120) errors.push("The event page identifier is too long.");
     if (quantity == null) errors.push("Quantity must be an integer from 1 to 10.");
     if (target.seatMode !== "bestAvailable") errors.push("Only Best Available is supported.");
     if (!areaPriorities.length) errors.push("At least one area preference is required.");
@@ -147,8 +185,8 @@
       ok: errors.length === 0,
       errors,
       value: {
-        eventLabel,
-        performanceLabel,
+        showDate,
+        eventId: eventId || undefined,
         quantity,
         seatMode: "bestAvailable",
         areaPriorities,
@@ -280,6 +318,7 @@
     STATES,
     actionId,
     allowedOrigin,
+    calendarDateKey,
     compileNamePattern,
     normalizeLabel,
     normalizedKey,
@@ -290,7 +329,8 @@
     resolveAreaPlan,
     resolveTicketType,
     sameResolvedAreaPlan,
-    sanitizeTarget
+    sanitizeTarget,
+    tixcraftPageIdentity
   });
 
   root.ConcertMasterCore = api;

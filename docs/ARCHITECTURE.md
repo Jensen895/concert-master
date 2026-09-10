@@ -29,7 +29,7 @@ Best Available is also carried as explicit session evidence. It is set only when
 | Recognized state | Allowed automatic action | Required next condition |
 | --- | --- | --- |
 | Event detail | Open the unique enabled performance-list entry | Performance state appears |
-| Performance selection | Select the unique configured performance | Performance state disappears |
+| Performance selection | Select the unique row matching the configured calendar date | Performance state disappears |
 | Seat mode | Select the unique `電腦配位` / Best Available control | Area or ticket state appears |
 | Area selection | Select the first unique, available, reviewed, in-budget preference | Ticket state appears |
 | Ticket selection | Set the approved ticket type to the exact quantity | Reservation-ready state appears |

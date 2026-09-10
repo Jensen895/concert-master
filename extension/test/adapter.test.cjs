@@ -7,8 +7,8 @@ const Adapter = require("../src/adapters/tixcraft-v1.js");
 
 const fixtures = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/classification.json"), "utf8"));
 const target = {
-  eventLabel: "Aurora Taipei",
-  performanceLabel: "2026/09/20 19:30",
+  showDate: "2026-09-20",
+  eventId: "demo",
   quantity: 2,
   seatMode: "bestAvailable",
   areaPriorities: [
@@ -27,8 +27,7 @@ function completeSnapshot(snapshot) {
     layoutSignature: null,
     ready: true,
     busy: false,
-    eventLabel: "",
-    eventLabels: [],
+    eventId: "demo",
     signals: {},
     entries: [],
     performances: [],
@@ -67,15 +66,38 @@ test("event entry requires an explicit performance-list postcondition", () => {
   assert.equal(Adapter.postconditionMet(pending, { state: Core.STATES.PERFORMANCE }), true);
 });
 
-test("event identity can match an exact metadata-derived candidate", () => {
+test("event identity is inherited from the starting detail-page URL", () => {
   const snapshot = completeSnapshot({
     routeKind: "detail",
     layoutSignature: "detail-v1",
-    eventLabel: "Aurora Taipei | tixCraft拓元售票系統",
-    eventLabels: ["Aurora Taipei | tixCraft拓元售票系統", "Aurora Taipei"],
+    eventId: "demo",
     entries: [{ key: "event:1", label: "立即購票", visible: true, enabled: true }]
   });
   assert.equal(Adapter.decide(snapshot, target).actionType, Core.ACTIONS.OPEN_PERFORMANCES);
+});
+
+test("show date selects the correct row when an event has multiple dates", () => {
+  const snapshot = completeSnapshot({
+    routeKind: "performance",
+    layoutSignature: "performance-v1",
+    performances: [
+      { key: "performance:first", label: "2026/09/19 19:30", showDate: "2026-09-19", visible: true, enabled: true },
+      { key: "performance:target", label: "2026/09/20 19:30", showDate: "2026-09-20", visible: true, enabled: true }
+    ]
+  });
+  assert.equal(Adapter.decide(snapshot, target).targetKey, "performance:target");
+});
+
+test("two performances on the same selected date fail closed", () => {
+  const snapshot = completeSnapshot({
+    routeKind: "performance",
+    layoutSignature: "performance-v1",
+    performances: [
+      { key: "performance:matinee", label: "2026/09/20 14:00", showDate: "2026-09-20", visible: true, enabled: true },
+      { key: "performance:evening", label: "2026/09/20 19:30", showDate: "2026-09-20", visible: true, enabled: true }
+    ]
+  });
+  assert.equal(Adapter.decide(snapshot, target).kind, "stop");
 });
 
 test("area selection requires prior Best Available evidence", () => {

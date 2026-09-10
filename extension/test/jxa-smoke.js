@@ -14,8 +14,8 @@ function run(argv) {
   eval(read(argv[1]));
   const fixtures = JSON.parse(read(argv[2]));
   const target = {
-    eventLabel: "Aurora Taipei",
-    performanceLabel: "2026/09/20 19:30",
+    showDate: "2026-09-20",
+    eventId: "demo",
     quantity: 2,
     seatMode: "bestAvailable",
     areaPriorities: [
@@ -29,6 +29,8 @@ function run(argv) {
 
   assert(ConcertMasterCore.sanitizeTarget(target).ok, "valid target rejected");
   assert(ConcertMasterCore.normalizeLabel(" Ａ2\n區 ") === "A2 區", "normalization failed");
+  assert(ConcertMasterCore.calendarDateKey("2026/9/20 (日) 19:30") === "2026-09-20", "show date normalization failed");
+  assert(ConcertMasterCore.calendarDateKey("2026-02-29") === "", "invalid show date accepted");
   assert(ConcertMasterCore.parseTwd("NT$ 4,800") === 4800, "price parsing failed");
   const areaPlan = ConcertMasterCore.resolveAreaPlan([
     { key: "a2", label: "A2", priceTwd: 5200, visible: true, enabled: true },
@@ -46,8 +48,7 @@ function run(argv) {
       layoutSignature: null,
       ready: true,
       busy: false,
-      eventLabel: "",
-      eventLabels: [],
+      eventId: "demo",
       signals: {},
       entries: [],
       performances: [],

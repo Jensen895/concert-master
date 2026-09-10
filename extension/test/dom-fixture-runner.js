@@ -6,8 +6,8 @@
   const fixtureRoot = document.getElementById("fixture");
   const results = document.getElementById("results");
   const target = {
-    eventLabel: "Aurora Taipei",
-    performanceLabel: "2026/09/20 19:30",
+    showDate: "2026-09-20",
+    eventId: "demo",
     quantity: 2,
     seatMode: "bestAvailable",
     areaPriorities: [
@@ -21,22 +21,33 @@
     {
       name: "event-detail DOM opens the performance list",
       url: "https://tixcraft.com/activity/detail/demo",
-      html: `<main data-event-detail><h1 data-event-title>Aurora Taipei</h1>
+      html: `<main data-event-detail><h1>Aurora Taipei</h1>
         <a href="/activity/game/demo">立即購票</a></main>`,
       expected: ["action", Core.ACTIONS.OPEN_PERFORMANCES]
     },
     {
+      name: "expanded event-detail DOM selects the matching Find tickets button",
+      url: "https://tixcraft.com/activity/detail/demo",
+      html: `<main data-event-detail><button data-action="buy">立即購票</button>
+        <div id="gameList"><table><tbody>
+          <tr><td>2026/09/19 (六) 19:30</td><td><button>Find tickets</button></td></tr>
+          <tr><td>2026/09/20 (日) 19:30</td><td><button>Find tickets</button></td></tr>
+        </tbody></table></div></main>`,
+      expected: ["action", Core.ACTIONS.SELECT_PERFORMANCE, "performance:1"]
+    },
+    {
       name: "performance DOM",
       url: "https://tixcraft.com/activity/game/demo",
-      html: `<h1 data-event-title>Aurora Taipei</h1><table id="gameList"><tr data-performance>
-        <td><time>2026/09/20 19:30</time></td><td><button class="btn-buy">立即購票</button></td>
-      </tr></table>`,
+      html: `<div id="gameList"><table><tbody>
+        <tr><td>2026/09/19 (六) 19:30</td><td><input class="btn-next" data-href="/ticket/area/demo/1" type="button" value="立即訂購"></td></tr>
+        <tr><td>2026/09/20 (日) 19:30</td><td><input class="btn-next" data-href="/ticket/area/demo/2" type="button" value="立即訂購"></td></tr>
+      </tbody></table></div>`,
       expected: ["action", Core.ACTIONS.SELECT_PERFORMANCE]
     },
     {
       name: "area DOM enforces price fallback",
       url: "https://tixcraft.com/ticket/area/demo",
-      html: `<h1 data-event-title>Aurora Taipei</h1><ul id="zone">
+      html: `<ul id="zone">
         <li><a data-area-id="a2"><span class="area-name">A2</span><span class="price">NT$5,200</span></a></li>
         <li><a data-area-id="a3"><span class="area-name">A3</span><span class="price">NT$4,500</span></a></li>
       </ul>`,
@@ -45,7 +56,7 @@
     {
       name: "ticket DOM resolves quantity",
       url: "https://tixcraft.com/ticket/ticket/demo",
-      html: `<h1 data-event-title>Aurora Taipei</h1><form id="ticketForm"><div class="ticket-unit">
+      html: `<form id="ticketForm"><div class="ticket-unit">
         <span class="ticket-name">全票</span><select data-ticket-type="全票"><option value="0">0</option><option value="2">2</option></select>
         <button id="submitButton" type="submit">確認張數</button>
       </div></form>`,
@@ -54,13 +65,13 @@
     {
       name: "CAPTCHA DOM hands off",
       url: "https://tixcraft.com/ticket/ticket/demo",
-      html: `<h1 data-event-title>Aurora Taipei</h1><form id="ticketForm"><input name="captcha_answer"></form>`,
+      html: `<form id="ticketForm"><input name="captcha_answer"></form>`,
       expected: ["handoff", undefined]
     },
     {
       name: "seat-map DOM hands off",
       url: "https://tixcraft.com/ticket/area/demo",
-      html: `<h1 data-event-title>Aurora Taipei</h1><div id="zone"><canvas class="seat-map" width="100" height="100"></canvas></div>`,
+      html: `<div id="zone"><canvas class="seat-map" width="100" height="100"></canvas></div>`,
       expected: ["handoff", undefined]
     }
   ];

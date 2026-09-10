@@ -4,8 +4,8 @@ const Core = require("../src/shared/core.js");
 
 function target(overrides = {}) {
   return {
-    eventLabel: "Aurora Taipei",
-    performanceLabel: "2026/09/20 19:30",
+    showDate: "2026-09-20",
+    eventId: "demo",
     quantity: 2,
     seatMode: "bestAvailable",
     areaPriorities: [
@@ -24,6 +24,18 @@ test("label normalization keeps meaningful area identifiers", () => {
   assert.equal(Core.normalizedKey(" VIP-A2 "), "vip-a2");
 });
 
+test("show dates normalize without applying a timezone conversion", () => {
+  assert.equal(Core.calendarDateKey("2026/9/20 (日) 19:30"), "2026-09-20");
+  assert.equal(Core.calendarDateKey("2026年09月20日 19:30"), "2026-09-20");
+  assert.equal(Core.calendarDateKey("2026-02-29"), "");
+});
+
+test("tixCraft page identity follows the event id through the purchase flow", () => {
+  assert.deepEqual(Core.tixcraftPageIdentity("https://tixcraft.com/activity/detail/26_DEMO"), { routeKind: "detail", eventId: "26_DEMO" });
+  assert.deepEqual(Core.tixcraftPageIdentity("https://tixcraft.com/activity/game/26_DEMO"), { routeKind: "performance", eventId: "26_DEMO" });
+  assert.deepEqual(Core.tixcraftPageIdentity("https://tixcraft.com/ticket/area/26_DEMO/123"), { routeKind: "area", eventId: "26_DEMO" });
+});
+
 test("prices parse without storing surrounding page content", () => {
   assert.equal(Core.parseTwd("票價 NT$ 4,800"), 4800);
   assert.equal(Core.parseTwd("price unavailable"), null);
@@ -38,6 +50,11 @@ test("area patterns are bounded, anchored globs", () => {
 
 test("target validation enforces the pilot boundary", () => {
   assert.equal(Core.sanitizeTarget(target()).ok, true);
+  const popupDraft = target({ eventId: undefined, eventLabel: "No longer required" });
+  const sanitizedDraft = Core.sanitizeTarget(popupDraft);
+  assert.equal(sanitizedDraft.ok, true);
+  assert.equal("eventLabel" in sanitizedDraft.value, false);
+  assert.equal(Core.sanitizeTarget(target({ showDate: "2026-02-29" })).ok, false);
   assert.equal(Core.sanitizeTarget(target({ seatMode: "pickYourOwn" })).ok, false);
   assert.equal(Core.sanitizeTarget(target({ quantity: 0 })).ok, false);
   assert.equal(Core.sanitizeTarget(target({ areaPriorities: [] })).ok, false);

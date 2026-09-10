@@ -4,8 +4,8 @@
     "snapshot": {
       "routeKind": "performance",
       "layoutSignature": "performance-v1",
-      "eventLabel": "Aurora Taipei",
-      "performances": [{ "key": "performance:1", "label": "2026/09/20 19:30", "visible": true, "enabled": true }]
+      "eventId": "demo",
+      "performances": [{ "key": "performance:1", "label": "2026/09/20 19:30", "showDate": "2026-09-20", "visible": true, "enabled": true }]
     },
     "expected": { "kind": "action", "state": "performanceSelection", "actionType": "selectPerformance" }
   },
@@ -14,8 +14,8 @@
     "snapshot": {
       "routeKind": "performance",
       "layoutSignature": "performance-v1",
-      "eventLabel": "Aurora Taipei",
-      "performances": [{ "key": "performance:1", "label": "2026/09/20 19:30", "visible": true, "enabled": false }]
+      "eventId": "demo",
+      "performances": [{ "key": "performance:1", "label": "2026/09/20 19:30", "showDate": "2026-09-20", "visible": true, "enabled": false }]
     },
     "expected": { "kind": "wait", "state": "performanceWaiting" }
   },
@@ -24,7 +24,7 @@
     "snapshot": {
       "routeKind": "ticket",
       "layoutSignature": "ticket-v1",
-      "eventLabel": "Aurora Taipei",
+      "eventId": "demo",
       "signals": { "challenge": true },
       "tickets": [{ "key": "ticket:1", "label": "全票", "visible": true, "enabled": true, "selectedQuantity": 0, "options": [{ "value": "2", "quantity": 2, "enabled": true }] }]
     },
@@ -35,7 +35,7 @@
     "snapshot": {
       "routeKind": "performance",
       "layoutSignature": "performance-v1",
-      "eventLabel": "Aurora Taipei",
+      "eventId": "demo",
       "signals": { "blocked": true }
     },
     "expected": { "kind": "stop", "state": "unknown" }
@@ -45,7 +45,7 @@
     "snapshot": {
       "routeKind": "area",
       "layoutSignature": "area-v1",
-      "eventLabel": "Aurora Taipei",
+      "eventId": "demo",
       "signals": { "seatMap": true }
     },
     "expected": { "kind": "handoff", "state": "handoff" }
@@ -55,7 +55,7 @@
     "snapshot": {
       "routeKind": "area",
       "layoutSignature": "area-v1",
-      "eventLabel": "Aurora Taipei",
+      "eventId": "demo",
       "seatModes": [{ "key": "seat:auto", "label": "電腦配位", "selected": false, "visible": true, "enabled": true }]
     },
     "expected": { "kind": "action", "state": "seatMode", "actionType": "selectSeatMode" }
@@ -65,7 +65,7 @@
     "snapshot": {
       "routeKind": "area",
       "layoutSignature": "area-v1",
-      "eventLabel": "Aurora Taipei",
+      "eventId": "demo",
       "areas": [
         { "key": "area:a2", "label": "A2", "priceTwd": 5200, "visible": true, "enabled": true, "soldOut": false, "ineligible": false },
         { "key": "area:a3", "label": "A3", "priceTwd": 4500, "visible": true, "enabled": true, "soldOut": false, "ineligible": false },
@@ -79,7 +79,7 @@
     "snapshot": {
       "routeKind": "area",
       "layoutSignature": "area-v1",
-      "eventLabel": "Aurora Taipei",
+      "eventId": "demo",
       "areas": [
         { "key": "area:a2-left", "label": "A2", "priceTwd": 4800, "visible": true, "enabled": true },
         { "key": "area:a2-right", "label": "A2", "priceTwd": 4800, "visible": true, "enabled": true }
@@ -92,7 +92,7 @@
     "snapshot": {
       "routeKind": "ticket",
       "layoutSignature": "ticket-v1",
-      "eventLabel": "Aurora Taipei",
+      "eventId": "demo",
       "tickets": [{ "key": "ticket:full", "label": "全票", "visible": true, "enabled": true, "selectedQuantity": 0, "options": [{ "value": "0", "quantity": 0, "enabled": true }, { "value": "2", "quantity": 2, "enabled": true }] }]
     },
     "expected": { "kind": "action", "state": "ticketSelection", "actionType": "setQuantity" }
@@ -102,7 +102,7 @@
     "snapshot": {
       "routeKind": "ticket",
       "layoutSignature": "ticket-v1",
-      "eventLabel": "Aurora Taipei",
+      "eventId": "demo",
       "tickets": [{ "key": "ticket:full", "label": "全票", "visible": true, "enabled": true, "selectedQuantity": 2, "options": [{ "value": "2", "quantity": 2, "enabled": true }] }],
       "submits": [{ "key": "submit:1", "label": "確認張數", "visible": true, "enabled": true }]
     },
@@ -113,7 +113,7 @@
     "snapshot": {
       "routeKind": "order",
       "layoutSignature": "order-v1",
-      "eventLabel": "Aurora Taipei"
+      "eventId": ""
     },
     "expected": { "kind": "cart", "state": "cartHeld" }
   },
@@ -121,17 +121,17 @@
     "name": "unknown layout always stops",
     "snapshot": {
       "routeKind": "unknown",
-      "eventLabel": "Aurora Taipei"
+      "eventId": ""
     },
     "expected": { "kind": "stop", "state": "unknown" }
   },
   {
-    "name": "event mismatch always stops",
+    "name": "event URL mismatch always stops",
     "snapshot": {
       "routeKind": "performance",
       "layoutSignature": "performance-v1",
-      "eventLabel": "Different Event",
-      "performances": [{ "key": "performance:1", "label": "2026/09/20 19:30", "visible": true, "enabled": true }]
+      "eventId": "different-event",
+      "performances": [{ "key": "performance:1", "label": "2026/09/20 19:30", "showDate": "2026-09-20", "visible": true, "enabled": true }]
     },
     "expected": { "kind": "stop", "state": "unknown" }
   },
@@ -140,9 +140,23 @@
     "snapshot": {
       "routeKind": "detail",
       "layoutSignature": "detail-v1",
-      "eventLabel": "Aurora Taipei",
+      "eventId": "demo",
       "entries": [{ "key": "event:1", "label": "立即購票", "visible": true, "enabled": true }]
     },
     "expected": { "kind": "action", "state": "eventDetail", "actionType": "openPerformances" }
+  },
+  {
+    "name": "expanded detail selects its matching Find tickets control",
+    "snapshot": {
+      "routeKind": "detail",
+      "layoutSignature": "detail-v1",
+      "eventId": "demo",
+      "entries": [{ "key": "event:1", "label": "立即購票", "visible": true, "enabled": true }],
+      "performances": [
+        { "key": "performance:first", "label": "2026/09/19 19:30", "showDate": "2026-09-19", "visible": true, "enabled": true },
+        { "key": "performance:target", "label": "2026/09/20 19:30", "showDate": "2026-09-20", "visible": true, "enabled": true }
+      ]
+    },
+    "expected": { "kind": "action", "state": "performanceSelection", "actionType": "selectPerformance", "targetKey": "performance:target" }
   }
 ]

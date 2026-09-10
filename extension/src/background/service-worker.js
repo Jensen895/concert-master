@@ -82,7 +82,15 @@ async function previewInTab(tab, target, options) {
   if (!tab?.id || tab.incognito || !Core.allowedOrigin(tab.url || "")) {
     return { ok: false, errors: ["Open a supported tixCraft page in the active tab."] };
   }
-  const response = await sendToTab(tab.id, { type: "PREVIEW_TARGET", target, options });
+  let scopedTarget = target;
+  if (!target?.eventId) {
+    const identity = Core.tixcraftPageIdentity(tab.url);
+    if (identity.routeKind !== "detail" || !identity.eventId) {
+      return { ok: false, errors: ["Start on the event's tixCraft detail page before reviewing the target."] };
+    }
+    scopedTarget = { ...target, eventId: identity.eventId };
+  }
+  const response = await sendToTab(tab.id, { type: "PREVIEW_TARGET", target: scopedTarget, options });
   return response || { ok: false, errors: ["The tixCraft adapter is not available in this tab. Reload the page once."] };
 }
 
@@ -109,11 +117,18 @@ function sameAreaAuthorization(left, right) {
 
 async function handleArm(request) {
   const tab = await activeTab();
-  const validation = Core.sanitizeTarget(request.target);
-  if (!validation.ok) return { ok: false, errors: validation.errors };
   if (!tab?.id || tab.incognito || !Core.allowedOrigin(tab.url || "")) {
     return { ok: false, errors: ["The active tab must be an ordinary tixCraft tab."] };
   }
+  const identity = Core.tixcraftPageIdentity(tab.url);
+  if (identity.routeKind !== "detail" || !identity.eventId) {
+    return { ok: false, errors: ["Arm Concert Master from the event's tixCraft detail page."] };
+  }
+  if (request.reviewedEventId !== identity.eventId) {
+    return { ok: false, errors: ["The open event changed after review. Review the current detail page again."] };
+  }
+  const validation = Core.sanitizeTarget({ ...request.target, eventId: identity.eventId });
+  if (!validation.ok) return { ok: false, errors: validation.errors };
   if (![Core.MODES.DRY_RUN, Core.MODES.ASSIST, Core.MODES.BOUNDED_AUTO].includes(request.mode)) {
     return { ok: false, errors: ["Choose Dry Run, Assist, or Bounded Auto."] };
   }
@@ -124,13 +139,6 @@ async function handleArm(request) {
   });
   if (!preview.ok || preview.adapterVersion !== Core.ADAPTER_VERSION) {
     return { ok: false, errors: preview.errors?.length ? preview.errors : ["Adapter validation failed."] };
-  }
-  const visibleEventLabels = preview.snapshot?.eventLabels?.length
-    ? preview.snapshot.eventLabels
-    : preview.snapshot?.eventLabel ? [preview.snapshot.eventLabel] : [];
-  if (visibleEventLabels.length
-    && !visibleEventLabels.some((label) => Core.normalizedKey(label) === Core.normalizedKey(validation.value.eventLabel))) {
-    return { ok: false, errors: ["The visible event does not exactly match the configured event."] };
   }
   if (preview.decision?.kind === "stop"
     || (request.mode === Core.MODES.BOUNDED_AUTO && preview.decision?.kind === "handoff")

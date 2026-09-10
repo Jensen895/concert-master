@@ -6,25 +6,14 @@
   );
   if (!Core) throw new Error("ConcertMasterCore must load before the tixCraft adapter.");
 
-  const ACTION_TEXT = /^(立即(訂購|購票)|購票|Buy now)$/iu;
+  const ACTION_TEXT = /^(立即(訂購|購票)|購票|Buy now|Find tickets|See tickets|Start ordering|お申込みへ進む)$/iu;
   const SOLD_OUT_TEXT = /(已售完|售完|sold\s*out|暫無票券)/iu;
   const INELIGIBLE_TEXT = /(身障|輪椅|restricted|不適用)/iu;
   const BEST_AVAILABLE_TEXT = /^(電腦配位|best\s*available)$/iu;
   const SUBMIT_TEXT = /^(確認(張數|訂購|送出)?|下一步|送出|reserve|continue)$/iu;
 
   function routeKind(url) {
-    let path = "";
-    try {
-      path = new URL(url).pathname.toLocaleLowerCase("en-US");
-    } catch {
-      return "unknown";
-    }
-    if (/\/ticket\/order(?:\/|$)/u.test(path) || /\/order\/confirm(?:\/|$)/u.test(path)) return "order";
-    if (/\/ticket\/ticket(?:\/|$)/u.test(path)) return "ticket";
-    if (/\/ticket\/area(?:\/|$)/u.test(path)) return "area";
-    if (/\/activity\/game(?:\/|$)/u.test(path)) return "performance";
-    if (/\/activity\/detail(?:\/|$)/u.test(path)) return "detail";
-    return "unknown";
+    return Core.tixcraftPageIdentity(url).routeKind;
   }
 
   function uniqueElements(document, selectors) {
@@ -72,8 +61,9 @@
     const stable = element?.dataset?.gameId
       || element?.dataset?.areaId
       || element?.dataset?.ticketId
-      || element?.getAttribute?.("value")
-      || element?.id;
+      || element?.getAttribute?.("data-href")
+      || element?.id
+      || element?.getAttribute?.("value");
     return `${prefix}:${Core.normalizeLabel(stable || index)}`;
   }
 
@@ -86,42 +76,6 @@
       if (candidate) return textOf(candidate);
     }
     return textOf(element.closest?.("label")) || textOf(element);
-  }
-
-  function eventLabelCandidates(document, kind) {
-    const candidates = [];
-    const add = (value) => {
-      const label = Core.normalizeLabel(value);
-      if (label && label.length <= 200 && !candidates.some((item) => Core.normalizedKey(item) === Core.normalizedKey(label))) {
-        candidates.push(label);
-      }
-    };
-
-    for (const selector of [
-      "[data-event-title]", "h1.activity-title", ".activity-info h1", ".event-title",
-      ".activity-name", ".game-info .title", ".breadcrumb [data-event-name]",
-      "[itemprop='name']"
-    ]) {
-      for (const element of document.querySelectorAll(selector)) {
-        if (visible(element)) add(element.getAttribute("content") || textOf(element));
-      }
-    }
-    for (const selector of ["meta[property='og:title']", "meta[name='twitter:title']"]) {
-      add(document.querySelector(selector)?.getAttribute("content"));
-    }
-    if (kind === "detail") {
-      const headings = uniqueElements(document, ["main h1", "article h1", "h1"]).filter(visible);
-      if (headings.length === 1) add(textOf(headings[0]));
-    }
-
-    const pageTitle = Core.normalizeLabel(document.title);
-    if (pageTitle) {
-      add(pageTitle);
-      add(pageTitle.replace(/\s*[-|｜]\s*(?:tixCraft)?\s*拓元售票系統\s*$/iu, ""));
-      add(pageTitle.replace(/^\s*(?:tixCraft)?\s*拓元售票系統\s*[-|｜]\s*/iu, ""));
-      add(pageTitle.replace(/\s*[-|｜]\s*tixCraft\s*$/iu, ""));
-    }
-    return candidates;
   }
 
   function collectSignals(document, kind) {
@@ -184,23 +138,40 @@
 
   function collectPerformanceCandidates(document, scope = document) {
     const controls = uniqueElements(scope, [
-      "a[data-game-id]", "button[data-game-id]", "a.btn-buy", "button.btn-buy", "a[href*='/ticket/area/']",
-      "a[href*='/ticket/ticket/']", "button[data-action='buy']"
-    ]).filter((element) => ACTION_TEXT.test(textOf(element)) || element.hasAttribute("data-game-id"));
+      "a[data-game-id]", "button[data-game-id]", "a.btn-buy", "button.btn-buy", ".btn-next",
+      "input[data-href]", "button[data-href]", "a[href*='/ticket/area/']",
+      "a[href*='/ticket/ticket/']", "button[data-action='buy']",
+      "a", "button", "[role='button']", "input[type='button']", "input[type='submit']"
+    ]).filter((element) => ACTION_TEXT.test(textOf(element))
+      || element.hasAttribute("data-game-id")
+      || element.matches(".btn-next, [data-href]"));
 
     return controls.map((element, index) => {
       const row = element.closest("[data-performance], tr, li, .game-list, .activity-game") || element.parentElement;
-      const labelElement = row?.querySelector?.("[data-performance-label], time, .date, .game-time, .performance-label");
+      const labelElement = row?.querySelector?.("[data-performance-date], [data-performance-label], time, .date, .game-time, .performance-label, td:first-child");
+      const dateSelect = row?.querySelector?.("select[data-performance-date], select[name*='date' i], select[name*='game' i], select");
+      const selectedOption = dateSelect?.selectedOptions?.[0]
+        || dateSelect?.options?.[dateSelect.selectedIndex];
       const label = Core.normalizeLabel(
         element.dataset?.performanceLabel
         || labelElement?.getAttribute?.("datetime")
         || textOf(labelElement)
+        || textOf(selectedOption)
         || textOf(row)
       );
       const rowText = textOf(row);
+      const showDate = Core.calendarDateKey(
+        element.dataset?.performanceDate
+        || element.dataset?.performanceLabel
+        || labelElement?.getAttribute?.("datetime")
+        || textOf(labelElement)
+        || textOf(selectedOption)
+        || rowText
+      );
       return {
         key: keyFor(element, "performance", index),
         label,
+        showDate,
         rawLabel: rowText,
         visible: visible(element),
         enabled: enabled(element) && !SOLD_OUT_TEXT.test(rowText),
@@ -320,21 +291,21 @@
   }
 
   function collectSnapshot(document, url = document.location?.href || "") {
-    const kind = routeKind(url);
+    const identity = Core.tixcraftPageIdentity(url);
+    const kind = identity.routeKind;
     const pageRoot = layoutRoot(document, kind);
-    const eventLabels = eventLabelCandidates(document, kind);
+    const performanceRoot = layoutRoot(document, "performance");
     return {
       adapterVersion: Core.ADAPTER_VERSION,
       routeKind: kind,
+      eventId: identity.eventId,
       layoutSignature: pageRoot ? `${kind}-v1` : null,
       ready: document.readyState !== "loading",
       busy: document.documentElement?.getAttribute?.("aria-busy") === "true"
         || uniqueElements(document, [".loading:empty", "[data-loading='true']"]).some(visible),
-      eventLabel: eventLabels[0] || "",
-      eventLabels,
       signals: collectSignals(document, kind),
       entries: collectEntryCandidates(document),
-      performances: collectPerformanceCandidates(document, pageRoot || document),
+      performances: collectPerformanceCandidates(document, performanceRoot || pageRoot || document),
       seatModes: collectSeatModes(document, pageRoot || document),
       areas: collectAreas(document, pageRoot || document),
       tickets: collectTickets(document, pageRoot || document),
@@ -363,8 +334,22 @@
   }
 
   function eventMatches(snapshot, target) {
-    const labels = snapshot.eventLabels?.length ? snapshot.eventLabels : [snapshot.eventLabel];
-    return labels.some((label) => Core.normalizedKey(label) === Core.normalizedKey(target.eventLabel));
+    if (!target.eventId) return false;
+    return snapshot.eventId === target.eventId;
+  }
+
+  function performanceDecision(snapshot, target, candidates = snapshot.performances || []) {
+    const matches = candidates.filter((item) => item.showDate === target.showDate);
+    if (matches.length !== 1) {
+      return stopDecision(matches.length
+        ? "More than one performance matches the selected show date."
+        : "The selected show date is not present in this fixture-backed layout.");
+    }
+    const candidate = matches[0];
+    if (!candidate.visible || !candidate.enabled) {
+      return { kind: "wait", state: Core.STATES.PERFORMANCE_WAITING, confidence: 0.99, reason: "The target performance is not actionable yet." };
+    }
+    return actionDecision(Core.STATES.PERFORMANCE, Core.ACTIONS.SELECT_PERFORMANCE, candidate);
   }
 
   function decide(snapshot, target, context = {}) {
@@ -383,15 +368,18 @@
       return { kind: "wait", state: Core.STATES.LOADING, confidence: 0.99, reason: "Waiting for the page to become stable." };
     }
     if (!eventMatches(snapshot, target)) {
-      return stopDecision(snapshot.eventLabel
-        ? "The visible event does not exactly match the armed event."
-        : "The event identity cannot be verified on this page.");
+      return stopDecision(snapshot.eventId
+        ? "This page belongs to a different event than the armed event detail page."
+        : "The event identity cannot be verified from this page URL.");
     }
     if (snapshot.layoutSignature !== `${snapshot.routeKind}-v1`) {
       return stopDecision("The page does not match a fixture-backed layout signature.");
     }
 
     if (snapshot.routeKind === "detail") {
+      const visiblePerformances = (snapshot.performances || []).filter((item) => item.visible);
+      if (visiblePerformances.length) return performanceDecision(snapshot, target, visiblePerformances);
+
       const entries = snapshot.entries || [];
       if (entries.length !== 1) {
         return stopDecision(entries.length
@@ -406,17 +394,7 @@
     }
 
     if (snapshot.routeKind === "performance") {
-      const matches = snapshot.performances.filter((item) => Core.normalizedKey(item.label) === Core.normalizedKey(target.performanceLabel));
-      if (matches.length !== 1) {
-        return stopDecision(matches.length
-          ? "The configured performance is ambiguous."
-          : "The configured performance is not present in this fixture-backed layout.");
-      }
-      const candidate = matches[0];
-      if (!candidate.visible || !candidate.enabled) {
-        return { kind: "wait", state: Core.STATES.PERFORMANCE_WAITING, confidence: 0.99, reason: "The target performance is not actionable yet." };
-      }
-      return actionDecision(Core.STATES.PERFORMANCE, Core.ACTIONS.SELECT_PERFORMANCE, candidate);
+      return performanceDecision(snapshot, target);
     }
 
     const bestModes = snapshot.seatModes.filter((mode) => BEST_AVAILABLE_TEXT.test(Core.normalizeLabel(mode.label)));
@@ -476,13 +454,12 @@
     return {
       adapterVersion: snapshot.adapterVersion,
       routeKind: snapshot.routeKind,
+      eventId: snapshot.eventId,
       layoutSignature: snapshot.layoutSignature,
       ready: snapshot.ready,
-      eventLabel: snapshot.eventLabel,
-      eventLabels: snapshot.eventLabels || (snapshot.eventLabel ? [snapshot.eventLabel] : []),
       signals: snapshot.signals,
       entries: copyItems(snapshot.entries || []),
-      performances: copyItems(snapshot.performances),
+      performances: copyItems(snapshot.performances, (item) => ({ showDate: item.showDate })),
       seatModes: copyItems(snapshot.seatModes, (item) => ({ selected: item.selected })),
       areas: copyItems(snapshot.areas, (item) => ({
         priceTwd: item.priceTwd,
