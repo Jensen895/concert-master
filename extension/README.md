@@ -6,7 +6,7 @@ Start a session on the event's `/activity/detail/<event-id>` page. The adapter c
 
 ## Layout
 
-- `manifest.json` grants only the two tixCraft HTTPS origins plus storage, notifications, alarms, active-tab access, and tab lifecycle access for origin-change Stop.
+- `manifest.json` grants the two tixCraft HTTPS origins and the local demo host, plus storage, notifications, alarms, active-tab access, and tab lifecycle access for origin-change Stop. Runtime validation limits the demo host to exactly `http://localhost:4173`.
 - `src/shared/core.js` contains target validation, label/price normalization, deterministic preference resolution, action IDs, and telemetry redaction.
 - `src/adapters/tixcraft-v1.js` maps versioned page signatures to semantic snapshots and decisions.
 - `src/content/content.js` owns observation, safety checks, dispatch, postconditions, overlays, and teardown.
@@ -45,3 +45,14 @@ osascript -l JavaScript test/jxa-smoke.js \
 ```
 
 Open `test/dom-fixture-runner.html` in a browser to exercise the real DOM collectors against sanitized performance, area, ticket, CAPTCHA, and seat-map markup. Every row should report `PASS`.
+
+## Local interactive demo
+
+The static pages in `demo/` reproduce the recognized purchase flow and include four performance dates, six price sections, sold-out states, ticket quantities, and a held-cart destination. They never contact tixCraft.
+
+```sh
+cd extension
+python3 -m http.server 4173 --directory demo
+```
+
+Reload the unpacked extension after pulling the localhost manifest permission, then open `http://localhost:4173/activity/detail/CM_DEMO_2026/`. See [`demo/README.md`](demo/README.md) for a target configuration that exercises sold-out fallback.

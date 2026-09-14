@@ -305,7 +305,9 @@
         || uniqueElements(document, [".loading:empty", "[data-loading='true']"]).some(visible),
       signals: collectSignals(document, kind),
       entries: collectEntryCandidates(document),
-      performances: collectPerformanceCandidates(document, performanceRoot || pageRoot || document),
+      performances: performanceRoot
+        ? collectPerformanceCandidates(document, performanceRoot)
+        : [],
       seatModes: collectSeatModes(document, pageRoot || document),
       areas: collectAreas(document, pageRoot || document),
       tickets: collectTickets(document, pageRoot || document),

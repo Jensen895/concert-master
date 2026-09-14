@@ -14,4 +14,11 @@ Sources:
 - [claaaaassic/tixcraft-ticket](https://github.com/claaaaassic/tixcraft-ticket), commit `add74bc23c80572c59d6c6249a7df1704d382ed7` (2016-11-25): configured ticket date matched against the first cell of each performance row, with the row's purchase URL selected.
 - [zlargon/tixcraft Hacking](https://gist.github.com/zlargon/63cbcf4b3024c9343be012f1d91bac39), commit `fedc973db7a8ab5d9e226ee2be51b096b2172a57` (2016-06-25): captured TixCraft markup showing the first-column date and `input[data-href]` purchase control.
 
+Visual fixture references added 2026-09-11:
+
+- [djpken/tixcraft-helper `25_david.html`](https://github.com/djpken/tixcraft-helper/blob/f761e640a0b409d8894504846e289361d7962223/25_david.html), commit `f761e640a0b409d8894504846e289361d7962223` (2025-09-21): a full saved production page showing the dark utility bar, blue gradient navigation, tixCraft/Ticketmaster Taiwan lockup, breadcrumb, blurred event-art backdrop, centered poster/title, filters, and the performance table rendered inline on `/activity/detail/`.
+- [kuzco77/tixcraft-camper seat-selection screenshot](https://github.com/kuzco77/tixcraft-camper/blob/d8d426e45943acd2514e953c46bf128341793b35/.screenshot/seats.png), commit `d8d426e45943acd2514e953c46bf128341793b35` (2025-12-02): a rendered current-flow reference for the five-step progress indicator, compact event summary, Best Available/Pick Your Own switch, two-column seat map, price-group headers, availability text, and sold-out styling.
+
+The local demo reproduces those structural and visual patterns with fictional event artwork and data. It does not copy live event assets or personal/session data from the captured files.
+
 Concert Master intentionally narrows the common keyword approach: it normalizes the user's date to `YYYY-MM-DD`, extracts a calendar date from each row without timezone conversion, and acts only when exactly one row matches. Two showtimes on the same day are treated as ambiguous and stop safely. The extension also keeps its existing prohibition on reloads, background TixCraft requests, CAPTCHA handling, and payment automation.

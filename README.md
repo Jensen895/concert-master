@@ -13,6 +13,17 @@ The existing macOS app and Node service remain in this repository as legacy scaf
 5. Enter the show date, ordered areas, ticket types, quantity, and price cap. The event identity comes from the open detail-page URL.
 6. Review the current page, choose Dry Run or Assist first, and arm the session.
 
+## Run the local tixCraft demo
+
+The repository includes a static, fake purchase flow so the extension can be tested without a live event:
+
+```sh
+cd extension
+python3 -m http.server 4173 --directory demo
+```
+
+Reload the unpacked extension, then open `http://localhost:4173/activity/detail/CM_DEMO_2026/`. The demo has four performance dates, multiple ticket prices, available and sold-out sections, quantity selection, and a held-cart result. Suggested extension inputs are documented in [`extension/demo/README.md`](extension/demo/README.md).
+
 Bounded Auto is scoped to the current tab and expires after at most 30 minutes. If real area choices are not visible when the session is first armed, it pauses at the area page so the resolved label and price can be confirmed before selection. Reservation submission is a separate, off-by-default permission.
 
 Use **Command + Shift + .** to stop immediately. Chrome allows this shortcut to be changed at `chrome://extensions/shortcuts`.

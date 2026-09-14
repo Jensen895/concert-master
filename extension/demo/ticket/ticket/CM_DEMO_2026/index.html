@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>選擇張數｜LUMINA WORLD TOUR</title>
+    <link rel="stylesheet" href="/assets/tixcraft-demo.css">
+  </head>
+  <body>
+    <div class="utility-bar"><div class="header-inner utility-inner"><span>◉&nbsp; TW　中文</span><strong>Concert Master 本機測試站 · 不販售真實票券</strong><span>登入</span></div></div>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="/"><span class="brand-word">tixcraft</span><small>ticketmaster<sup>®</sup> Taiwan</small></a>
+        <nav class="primary-nav" aria-label="主要選單"><a class="active" href="/">節目資訊</a><a href="#">最新消息</a><a href="#">常見問題</a><a href="#">訂單查詢</a></nav>
+        <label class="site-search"><span class="sr-only">搜尋節目</span><input type="search" placeholder="搜尋節目"><b aria-hidden="true">⌕</b></label>
+        <div class="account-nav"><span>◯</span><span>會員帳戶</span></div>
+      </div>
+    </header>
+    <div class="breadcrumb-wrap"><ol class="breadcrumbs"><li><a href="/">首頁</a></li><li><a href="/activity/detail/CM_DEMO_2026/">LUMINA WORLD TOUR《AFTERGLOW》台北站</a></li><li>選擇張數</li></ol></div>
+    <main class="purchase-shell">
+      <ol class="purchase-progress" aria-label="購票流程">
+        <li class="complete"><i>✓</i><span>選擇區域</span></li><li class="current"><i>✓</i><span>選擇張數</span></li><li><i></i><span>購票確認</span></li><li><i></i><span>付款</span></li><li><i></i><span>完成訂購</span></li>
+      </ol>
+      <section class="ticket-event-summary">
+        <div class="event-thumb"><span>LUMINA</span><small>AFTERGLOW</small></div>
+        <div><h1>LUMINA WORLD TOUR《AFTERGLOW》台北站</h1><p>LUMINA WORLD TOUR《AFTERGLOW》台北站</p><p>▣ 2026.12.19（六）19:30　● 臺北大巨蛋</p></div>
+      </section>
+      <section class="selection-card ticket-list">
+        <form id="ticketForm" action="/order/confirm/" method="get">
+          <div class="selected-area"><b>所選擇區域</b><span><i style="--area-color:#e6bd39"></i> 黃2B區 4800</span><em></em><strong>最多可選 4 張</strong></div>
+          <table class="ticket-table">
+            <thead><tr><th>票種／票價(元)</th><th style="width:31%">數量選擇</th><th style="width:19%">備註</th></tr></thead>
+            <tbody>
+              <tr class="ticket-unit" data-ticket-row>
+                <td><span class="ticket-name" data-ticket-label>全票</span> <b class="ticket-price">4,800</b></td>
+                <td><select class="mobile-select" name="TicketForm[ticketPrice][full]" data-ticket-type="全票" aria-label="全票張數"><option value="0" selected>0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></td><td></td>
+              </tr>
+              <tr class="ticket-unit muted-ticket" data-ticket-row>
+                <td><span class="ticket-name" data-ticket-label>愛心票</span> <b class="ticket-price">2,500</b></td>
+                <td><select class="mobile-select" name="TicketForm[ticketPrice][accessible]" data-ticket-type="愛心票" aria-label="愛心票張數" disabled><option value="0" selected>已售完</option></select></td><td>資格限定</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="verification-preview" aria-label="測試驗證碼預覽"><div class="verification-image">cm42</div><div><div class="fake-input">此測試流程略過驗證碼</div><p>※ 真實頁面會要求輸入圖中英文字元</p><p>※ 請勿多視窗操作，以免購票失敗</p></div></div>
+          <label class="agreement"><input type="checkbox" checked><span>我已詳細閱讀且同意會員服務條款及節目資訊公告，並同意於條款範圍內進行個人資料蒐集、處理及利用。</span></label>
+          <div class="form-actions"><a class="secondary-button" href="/ticket/area/CM_DEMO_2026/">重新選擇</a><button id="submitButton" class="submit-button" type="submit">確認張數</button></div>
+        </form>
+      </section>
+    </main>
+    <footer class="site-footer"><div class="footer-inner footer-grid"><div><a class="brand footer-brand" href="/"><span class="brand-word">tixcraft</span><small>ticketmaster<sup>®</sup> Taiwan</small></a></div><div><h3>客戶服務及消費爭議處理</h3><p>本頁為本機 UI 測試資料，不會建立訂單或收取款項。</p></div><div><h3>相關連結</h3><p>節目資訊　最新消息　常見問題</p></div></div></footer>
+  </body>
+</html>

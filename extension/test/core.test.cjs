@@ -36,6 +36,12 @@ test("tixCraft page identity follows the event id through the purchase flow", ()
   assert.deepEqual(Core.tixcraftPageIdentity("https://tixcraft.com/ticket/area/26_DEMO/123"), { routeKind: "area", eventId: "26_DEMO" });
 });
 
+test("only the fixed local demo server is accepted outside tixCraft", () => {
+  assert.equal(Core.allowedOrigin("http://localhost:4173/activity/detail/CM_DEMO_2026/"), true);
+  assert.equal(Core.allowedOrigin("http://localhost:8000/activity/detail/CM_DEMO_2026/"), false);
+  assert.equal(Core.allowedOrigin("http://127.0.0.1:4173/activity/detail/CM_DEMO_2026/"), false);
+});
+
 test("prices parse without storing surrounding page content", () => {
   assert.equal(Core.parseTwd("票價 NT$ 4,800"), 4800);
   assert.equal(Core.parseTwd("price unavailable"), null);

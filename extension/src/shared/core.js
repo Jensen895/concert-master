@@ -4,7 +4,8 @@
   const ADAPTER_VERSION = "tixcraft-v1";
   const ALLOWED_ORIGINS = Object.freeze([
     "https://tixcraft.com",
-    "https://www.tixcraft.com"
+    "https://www.tixcraft.com",
+    "http://localhost:4173"
   ]);
 
   const MODES = Object.freeze({

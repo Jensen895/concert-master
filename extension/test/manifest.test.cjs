@@ -11,11 +11,16 @@ test("manifest is a narrow MV3 extension", () => {
   assert.equal(manifest.incognito, "not_allowed");
   assert.deepEqual(manifest.host_permissions, [
     "https://tixcraft.com/*",
-    "https://www.tixcraft.com/*"
+    "https://www.tixcraft.com/*",
+    "http://localhost/*"
   ]);
   for (const forbidden of ["cookies", "webRequest", "webRequestBlocking", "proxy", "scripting"]) {
     assert.equal(manifest.permissions.includes(forbidden), false, forbidden);
   }
+});
+
+test("the local demo origin is available to the content script", () => {
+  assert.equal(manifest.content_scripts[0].matches.includes("http://localhost/*"), true);
 });
 
 test("content scripts load the core and adapter before the controller", () => {

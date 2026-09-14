@@ -4,6 +4,7 @@
   "private": true,
   "description": "Manifest V3 tixCraft extension pilot",
   "scripts": {
+    "demo": "python3 -m http.server 4173 --directory demo",
     "test": "node --test test/*.test.cjs",
     "check": "node --check src/shared/core.js && node --check src/adapters/tixcraft-v1.js && node --check src/content/content.js && node --check src/background/service-worker.js && node --check src/popup/popup.js && node --test test/*.test.cjs"
   }

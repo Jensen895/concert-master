@@ -517,6 +517,13 @@
     if (document.visibilityState === "visible") schedule();
   });
 
+  // Native form value changes do not produce DOM mutations. Reclassify after
+  // user or adapter input so a static fixture can advance without app scripts.
+  document.addEventListener("input", schedule, true);
+  document.addEventListener("change", schedule, true);
+  document.addEventListener("click", schedule, true);
+  window.addEventListener("hashchange", schedule);
+
   send({ type: "CONTENT_READY", pageGeneration: state.pageGeneration })?.then?.((response) => {
     if (response?.session) startSession(response.session);
   }).catch?.(() => {});

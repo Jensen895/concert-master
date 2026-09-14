@@ -14,7 +14,8 @@
   ],
   "host_permissions": [
     "https://tixcraft.com/*",
-    "https://www.tixcraft.com/*"
+    "https://www.tixcraft.com/*",
+    "http://localhost/*"
   ],
   "background": {
     "service_worker": "src/background/service-worker.js"
@@ -27,7 +28,8 @@
     {
       "matches": [
         "https://tixcraft.com/*",
-        "https://www.tixcraft.com/*"
+        "https://www.tixcraft.com/*",
+        "http://localhost/*"
       ],
       "css": ["src/content/content.css"],
       "js": [
