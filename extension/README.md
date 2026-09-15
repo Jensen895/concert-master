@@ -27,11 +27,11 @@ On a recognized ticket page, Bounded Auto may set the configured 全票 and/or �
 
 ## Area priorities
 
-Each priority contains one exact event-specific area name, such as `B1看台103區`. The adapter separates the area name from the price and availability text in current tixCraft rows, normalizes the name, and requires it to resolve to exactly one visible area.
+Area priorities are optional. Each entered priority contains one exact event-specific area name, such as `B1看台103區`. The adapter separates the area name from the price and availability text in current tixCraft rows, normalizes the name, and requires it to resolve to exactly one visible area. When no priorities are entered, the adapter scans the site's area list in DOM order and chooses the first available row whose known price does not exceed the maximum ticket price.
 
-The required maximum ticket price is the single budget baseline for every area. An over-budget priority is always discarded and resolution continues with the next name. With fallback disabled, non-price failures of the first preference pause. With fallback enabled, explicit inventory failure can advance once through reviewed preferences, never in parallel and never beyond three attempted areas.
+The required maximum ticket price is the single budget baseline for every area. An over-budget priority is always discarded and resolution continues with the next name. With fallback disabled, non-price failures of the first named preference pause. With fallback enabled, explicit inventory failure can advance through named preferences or eligible page-order rows, never in parallel and never beyond three attempted areas.
 
-Some events, including layouts shaped like `/ticket/area/<event>/<performance>`, present the area before any seat-choice step. In Bounded Auto, Concert Master selects the highest-priority eligible area without asking for another confirmation. A resulting quantity page continues normally; a `/ticket/select-seat/` route or embedded seat picker pauses for manual seat choice.
+Some events, including layouts shaped like `/ticket/area/<event>/<performance>`, present the area before any seat-choice step. In Bounded Auto, Concert Master selects the resolved area without asking for another confirmation and advances as soon as the resulting state is verified. A resulting quantity page continues normally; a `/ticket/select-seat/` route or embedded seat picker pauses for manual seat choice.
 
 ## Deliberate limitations
 

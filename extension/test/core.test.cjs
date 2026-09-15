@@ -69,7 +69,12 @@ test("target validation enforces the pilot boundary", () => {
   assert.equal(Core.sanitizeTarget(target({ seatMode: "pickYourOwn" })).ok, false);
   assert.equal(Core.sanitizeTarget(target({ ticketRequests: [{ kind: "full", quantity: 0 }] })).ok, false);
   assert.equal(Core.sanitizeTarget(target({ ticketRequests: [] })).ok, false);
-  assert.equal(Core.sanitizeTarget(target({ areaPriorities: [] })).ok, false);
+  const noPriorities = Core.sanitizeTarget(target({ areaPriorities: [] }));
+  assert.equal(noPriorities.ok, true);
+  assert.deepEqual(noPriorities.value.areaPriorities, []);
+  const blankPriorities = Core.sanitizeTarget(target({ areaPriorities: [{ name: "" }, { name: " A3 " }] }));
+  assert.equal(blankPriorities.ok, true);
+  assert.deepEqual(blankPriorities.value.areaPriorities, [{ name: "A3" }]);
   assert.equal(Core.sanitizeTarget(target({ maximumUnitPriceTwd: undefined })).ok, false);
 });
 
@@ -124,6 +129,28 @@ test("area resolution follows priority and the global maximum ticket price", () 
   assert.equal(result.status, "resolved");
   assert.equal(result.area.key, "a3");
   assert.deepEqual(result.outcomes.map((outcome) => outcome.status), ["overBudget", "eligible"]);
+});
+
+test("an empty priority list selects the first eligible area within the price limit", () => {
+  const result = Core.resolveAreaPlan([
+    { key: "premium", label: "Premium", priceTwd: 5200, visible: true, enabled: true },
+    { key: "first-match", label: "A2", priceTwd: 4700, visible: true, enabled: true },
+    { key: "cheaper", label: "A3", priceTwd: 3800, visible: true, enabled: true }
+  ], target({ areaPriorities: [] }));
+  assert.equal(result.status, "resolved");
+  assert.equal(result.area.key, "first-match");
+  assert.equal(result.selectionMode, "firstEligible");
+  assert.deepEqual(result.outcomes.map((outcome) => outcome.status), ["overBudget", "eligible"]);
+});
+
+test("automatic area selection skips unavailable and previously attempted rows", () => {
+  const result = Core.resolveAreaPlan([
+    { key: "sold-out", label: "A1", priceTwd: 4800, visible: true, enabled: false, soldOut: true },
+    { key: "attempted", label: "A2", priceTwd: 4700, visible: true, enabled: true },
+    { key: "next", label: "A3", priceTwd: 4600, visible: true, enabled: true }
+  ], target({ areaPriorities: [] }), ["attempted"]);
+  assert.equal(result.area.key, "next");
+  assert.deepEqual(result.outcomes.map((outcome) => outcome.status), ["unavailable", "alreadyAttempted", "eligible"]);
 });
 
 test("fallback-disabled resolution never broadens the first choice", () => {

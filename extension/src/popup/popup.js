@@ -228,7 +228,9 @@
     } else {
       elements.reviewBody.append(reviewLine(
         "Area verification",
-        "Not on this page — Auto will apply the configured priorities",
+        preview.usesAreaPriorities
+          ? "Not on this page — Auto will apply the configured priorities"
+          : "Not on this page — Auto will select the first area within your price limit",
         "good"
       ));
     }

@@ -142,7 +142,7 @@
             ? rawArea.namePattern || rawArea.displayLabel
             : rawArea;
           return { name: normalizeLabel(rawArea?.name || legacyName) };
-        })
+        }).filter((area) => area.name)
       : [];
     const legacyTicketPriorities = Array.isArray(target.ticketTypePriorities)
       ? target.ticketTypePriorities.map(normalizeLabel).filter(Boolean)
@@ -166,12 +166,7 @@
     else if (!showDate) errors.push("Show date must be a valid calendar date.");
     if (eventId.length > 120) errors.push("The event page identifier is too long.");
     if (target.seatMode !== "bestAvailable") errors.push("Only Best Available is supported.");
-    if (!areaPriorities.length) errors.push("At least one area preference is required.");
     for (const area of areaPriorities) {
-      if (!area.name) {
-        errors.push("Every area preference needs an area name.");
-        continue;
-      }
       if (area.name.length > 120) errors.push("Area names must be 120 characters or fewer.");
     }
     if (!ticketRequests.length) errors.push("Select at least one ticket type.");
@@ -204,9 +199,43 @@
   function resolveAreaPlan(areas, target, attemptedAreaKeys = [], allowFallback = true) {
     const attempted = new Set(attemptedAreaKeys);
     const outcomes = [];
+    const cap = target.maximumUnitPriceTwd;
+    const priorities = Array.isArray(target.areaPriorities) ? target.areaPriorities : [];
 
-    for (let index = 0; index < target.areaPriorities.length; index += 1) {
-      const preference = target.areaPriorities[index];
+    function areaStatus(area) {
+      if (attempted.has(area.key)) return "alreadyAttempted";
+      if (!area.visible || !area.enabled || area.soldOut || area.ineligible) return "unavailable";
+      if (area.priceTwd == null) return "priceUnknown";
+      if (cap != null && area.priceTwd > cap) return "overBudget";
+      return "eligible";
+    }
+
+    if (!priorities.length) {
+      for (let index = 0; index < areas.length; index += 1) {
+        const area = areas[index];
+        const status = areaStatus(area);
+        outcomes.push({
+          preference: area.label,
+          status,
+          areaKey: area.key,
+          resolvedLabel: area.label,
+          priceTwd: area.priceTwd,
+          cap
+        });
+        if (status === "eligible") {
+          return { status: "resolved", area, preferenceIndex: index, outcomes, selectionMode: "firstEligible" };
+        }
+      }
+      return {
+        status: "unavailable",
+        reason: "No available area at or below the maximum ticket price was found.",
+        outcomes,
+        selectionMode: "firstEligible"
+      };
+    }
+
+    for (let index = 0; index < priorities.length; index += 1) {
+      const preference = priorities[index];
       const preferenceName = normalizeLabel(preference.name || preference.namePattern || preference.displayLabel);
       const matches = areas.filter((area) => normalizedKey(area.label) === normalizedKey(preferenceName));
 
@@ -225,12 +254,7 @@
       }
 
       const area = matches[0];
-      const cap = target.maximumUnitPriceTwd;
-      let status = "eligible";
-      if (attempted.has(area.key)) status = "alreadyAttempted";
-      else if (!area.visible || !area.enabled || area.soldOut || area.ineligible) status = "unavailable";
-      else if (area.priceTwd == null) status = "priceUnknown";
-      else if (cap != null && area.priceTwd > cap) status = "overBudget";
+      const status = areaStatus(area);
 
       outcomes.push({
         preference: preferenceName,

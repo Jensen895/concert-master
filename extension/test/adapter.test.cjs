@@ -133,6 +133,25 @@ test("area-only layouts select the area before the site reveals the seat flow", 
   assert.equal(decision.targetKey, "area:a3");
 });
 
+test("area-only layouts use the first in-budget row when priorities are omitted", () => {
+  const snapshot = completeSnapshot({
+    routeKind: "area",
+    layoutSignature: "area-v1",
+    areas: [
+      { key: "area:premium", label: "Premium", priceTwd: 5200, visible: true, enabled: true },
+      { key: "area:first-match", label: "A2", priceTwd: 4700, visible: true, enabled: true },
+      { key: "area:cheaper", label: "A3", priceTwd: 3800, visible: true, enabled: true }
+    ]
+  });
+  const decision = Adapter.decide(snapshot, { ...target, areaPriorities: [] }, {
+    allowAreaFallback: true,
+    bestAvailableConfirmed: false
+  });
+  assert.equal(decision.kind, "action");
+  assert.equal(decision.actionType, Core.ACTIONS.SELECT_AREA);
+  assert.equal(decision.targetKey, "area:first-match");
+});
+
 test("a direct quantity page can continue after area selection without an earlier seat-mode control", () => {
   const snapshot = completeSnapshot(fixtures[8].snapshot);
   const decision = Adapter.decide(snapshot, target, { bestAvailableConfirmed: false });

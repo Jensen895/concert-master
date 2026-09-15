@@ -32,12 +32,15 @@ test("content scripts load the core and adapter before the controller", () => {
   assert.equal(manifest.content_scripts[0].all_frames, false);
 });
 
-test("each area priority exposes one exact-name input and one global price limit", () => {
+test("area priorities are optional and expose one exact-name input plus one global price limit", () => {
   const popup = fs.readFileSync(path.join(extensionRoot, "src/popup/popup.html"), "utf8");
   const template = popup.match(/<template id="areaRowTemplate">([\s\S]*?)<\/template>/u)?.[1] || "";
   assert.equal((template.match(/<input\b/gu) || []).length, 1);
   assert.match(template, /data-field="name"/u);
+  assert.doesNotMatch(template, /\brequired\b/u);
   assert.doesNotMatch(template, /displayLabel|namePattern|maximumUnitPriceTwd/u);
+  assert.match(popup, /Area priority <small>\(optional\)<\/small>/u);
+  assert.match(popup, /first available area[^<]*maximum price/u);
   assert.match(popup, /id="maximumPrice"[^>]*required/u);
 });
 

@@ -415,6 +415,7 @@
     const response = {
       ok: validation.ok && Core.allowedOrigin(location.href),
       errors: validation.errors,
+      usesAreaPriorities: validation.value.areaPriorities.length > 0,
       snapshot: Adapter.safeSnapshot(snapshot),
       adapterVersion: Adapter.VERSION,
       pageGeneration: state.pageGeneration

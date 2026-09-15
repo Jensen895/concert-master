@@ -63,6 +63,7 @@ h1 { margin: 0; font-size: 16px; letter-spacing: -.01em; }
 .section-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 11px; }
 .section-heading > div { display: flex; align-items: center; gap: 7px; }
 .section h2 { margin: 0; font-size: 12px; letter-spacing: .02em; }
+.section h2 small { color: var(--muted); font-size: 9px; font-weight: 500; }
 .step { color: var(--purple); font: 700 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .note { margin: 8px 1px 0; color: var(--muted); font-size: 11px; }
 .note.compact { margin: -5px 0 9px; }

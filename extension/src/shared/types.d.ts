@@ -1,7 +1,7 @@
 export type OperatingMode = "off" | "dryRun" | "assist" | "boundedAuto";
 
 export interface AreaPreference {
-  /** Exact event-specific area name, ordered from highest to lowest priority. */
+  /** Optional exact event-specific area name, ordered from highest to lowest priority. */
   name: string;
 }
 
@@ -18,6 +18,7 @@ export interface TicketTarget {
   /** Captured from the detail-page URL when the session is armed. */
   eventId?: string;
   seatMode: "bestAvailable";
+  /** Empty means select the first available area in page order within the price limit. */
   areaPriorities: AreaPreference[];
   ticketRequests: TicketRequest[];
   maximumUnitPriceTwd: number;

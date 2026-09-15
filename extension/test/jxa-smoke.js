@@ -27,6 +27,8 @@ function run(argv) {
   };
 
   assert(ConcertMasterCore.sanitizeTarget(target).ok, "valid target rejected");
+  const noPriorityTarget = ConcertMasterCore.sanitizeTarget(Object.assign({}, target, { areaPriorities: [{ name: "" }] }));
+  assert(noPriorityTarget.ok && noPriorityTarget.value.areaPriorities.length === 0, "blank optional area priority rejected");
   assert(!ConcertMasterCore.sanitizeTarget(Object.assign({}, target, { maximumUnitPriceTwd: undefined })).ok, "missing maximum ticket price accepted");
   const migratedTarget = ConcertMasterCore.sanitizeTarget(Object.assign({}, target, {
     areaPriorities: [{ displayLabel: "Old label", namePattern: "B1看台103區", maximumUnitPriceTwd: 1000 }]
@@ -63,6 +65,12 @@ function run(argv) {
     { key: "a3", label: "A3", priceTwd: 4500, visible: true, enabled: true }
   ], target, [], true);
   assert(areaPlan.status === "resolved" && areaPlan.area.key === "a3", "priority or price enforcement failed");
+  const firstEligibleArea = ConcertMasterCore.resolveAreaPlan([
+    { key: "premium", label: "Premium", priceTwd: 5200, visible: true, enabled: true },
+    { key: "first-match", label: "A2", priceTwd: 4700, visible: true, enabled: true },
+    { key: "cheaper", label: "A3", priceTwd: 3800, visible: true, enabled: true }
+  ], Object.assign({}, target, { areaPriorities: [] }), [], true);
+  assert(firstEligibleArea.status === "resolved" && firstEligibleArea.area.key === "first-match", "optional area priority did not use page order");
   const priceFallback = ConcertMasterCore.resolveAreaPlan([
     { key: "a2", label: "A2", priceTwd: 5200, visible: true, enabled: true },
     { key: "a3", label: "A3", priceTwd: 4500, visible: true, enabled: true }
@@ -89,6 +97,24 @@ function run(argv) {
     { key: "area:a3", label: "A3", priceTwd: 4500, visible: true, enabled: true }
   ] }), target, { allowAreaFallback: true, bestAvailableConfirmed: false });
   assert(areaFirstDecision.actionType === ConcertMasterCore.ACTIONS.SELECT_AREA, "area-first flow required premature seat-mode evidence");
+  const noPriorityAreaDecision = TixcraftAdapterV1.decide(Object.assign({
+    routeKind: "area",
+    layoutSignature: "area-v1",
+    ready: true,
+    busy: false,
+    eventId: "demo",
+    signals: {},
+    entries: [],
+    performances: [],
+    seatModes: [],
+    tickets: [],
+    submits: []
+  }, { areas: [
+    { key: "area:premium", label: "Premium", priceTwd: 5200, visible: true, enabled: true },
+    { key: "area:first-match", label: "A2", priceTwd: 4700, visible: true, enabled: true },
+    { key: "area:cheaper", label: "A3", priceTwd: 3800, visible: true, enabled: true }
+  ] }), Object.assign({}, target, { areaPriorities: [] }), { allowAreaFallback: true, bestAvailableConfirmed: false });
+  assert(noPriorityAreaDecision.targetKey === "area:first-match", "optional area priority did not select the first in-budget row");
   const seatHandoff = TixcraftAdapterV1.decide({
     routeKind: "seatSelection",
     layoutSignature: null,

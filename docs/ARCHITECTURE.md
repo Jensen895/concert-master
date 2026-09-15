@@ -20,7 +20,7 @@ The content script owns the full latency-sensitive path. One `MutationObserver` 
 
 The service worker enforces the single-session/single-tab boundary, expiry alarm, navigation origin guard, global Stop command, notifications, and a 200-entry redacted telemetry ring. Target configuration and action history live only in `chrome.storage.session`. `chrome.storage.local` contains UI defaults, the non-sensitive draft, and redacted event/timing fields.
 
-The popup validates target fields through the same shared core used by the controller. When the current page exposes areas, its review shows the exact resolved label, price, and rejection outcomes. In Bounded Auto, arming the configured target authorizes selection of the first unique area that satisfies the priority and maximum-price rules; there is no second confirmation at the area page.
+The popup validates target fields through the same shared core used by the controller. When the current page exposes areas, its review shows the exact resolved label, price, and rejection outcomes. In Bounded Auto, arming the configured target authorizes selection of the first unique area that satisfies the priority and maximum-price rules. If priorities are empty, it instead authorizes the first available area in page order at or below the maximum price. There is no second confirmation at the area page.
 
 When a page exposes a Best Available control, the adapter selects or verifies it before proceeding. Some events expose the area list first; for those layouts the adapter selects the resolved area and uses the resulting route as the boundary: a ticket page continues to quantity, while `/ticket/select-seat/` or an embedded seat picker hands control to the user.
 
@@ -31,7 +31,7 @@ When a page exposes a Best Available control, the adapter selects or verifies it
 | Event detail | Open the unique enabled performance-list entry | Performance state appears |
 | Performance selection | Select the unique row matching the configured calendar date | Performance state disappears |
 | Seat mode | Select the unique `電腦配位` / Best Available control | Area or ticket state appears |
-| Area selection | Match exact area names and select the first unique, available preference at or below the global maximum ticket price | Seat-mode, ticket-quantity, or manual-seat handoff appears |
+| Area selection | Match optional exact-name priorities, or select the first available row in page order when none are entered; always enforce the global maximum ticket price | Seat-mode, ticket-quantity, or manual-seat handoff appears |
 | Manual seat selection | None; highlight the boundary and hand off | User chooses a seat or stops |
 | Ticket selection | Set each checked 全票/優惠票 row to its requested quantity | Another requested ticket row, required acknowledgement, or manual verification handoff appears |
 | Acknowledgement | Check only `#TicketForm_agree` | Manual verification or submit handoff appears |
