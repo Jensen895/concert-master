@@ -136,6 +136,15 @@ input::placeholder { color: #5f5969; }
 .review-title { display: flex; justify-content: space-between; margin-bottom: 8px; }
 .review-title span { color: #b8a8ec; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; }
 .review-title b { font-size: 10px; }
+.review-reminder {
+  display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;
+  margin: 7px 0; padding: 9px 10px; border: 1px solid rgb(247 184 75 / 24%); border-radius: 8px;
+  background: rgb(247 184 75 / 6%);
+}
+.review-reminder.good { border-color: rgb(74 222 128 / 24%); background: rgb(74 222 128 / 5%); }
+.review-reminder strong { display: block; color: #f6c46d; font-size: 10px; }
+.review-reminder.good strong { color: #8de7ad; }
+.review-reminder p { margin: 2px 0 0; color: #c8c1d0; font-size: 10px; }
 .review-line { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; border-top: 1px solid rgb(255 255 255 / 6%); font-size: 11px; }
 .review-line span { color: var(--muted); }
 .review-line b { max-width: 230px; text-align: right; }

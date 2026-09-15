@@ -20,15 +20,17 @@
     {
       name: "event-detail DOM opens the performance list",
       url: "https://tixcraft.com/activity/detail/demo",
-      html: `<main data-event-detail><h1>Aurora Taipei</h1>
+      html: `<header><a href="/login">登入</a></header><main data-event-detail><h1>Aurora Taipei</h1>
         <a href="/activity/game/demo">立即購票</a></main>`,
+      expectedAccount: "loggedOut",
       expected: ["action", Core.ACTIONS.OPEN_PERFORMANCES]
     },
     {
       name: "English event-detail DOM recognizes Buy Tickets",
       url: "https://tixcraft.com/activity/detail/demo",
-      html: `<main data-event-detail><h1>Maroon 5 Taipei</h1>
+      html: `<header><a href="/logout">登出</a></header><main data-event-detail><h1>Maroon 5 Taipei</h1>
         <a class="btn-buy" href="/activity/game/demo">BUY TICKETS</a></main>`,
+      expectedAccount: "loggedIn",
       expected: ["action", Core.ACTIONS.OPEN_PERFORMANCES]
     },
     {
@@ -154,7 +156,8 @@
     const decision = Adapter.decide(snapshot, fixture.target || target, fixture.context || { allowAreaFallback: true, bestAvailableConfirmed: true });
     const passed = decision.kind === fixture.expected[0]
       && decision.actionType === fixture.expected[1]
-      && (fixture.expected[2] === undefined || decision.targetKey === fixture.expected[2]);
+      && (fixture.expected[2] === undefined || decision.targetKey === fixture.expected[2])
+      && (fixture.expectedAccount === undefined || snapshot.accountStatus === fixture.expectedAccount);
     const row = document.createElement("li");
     row.className = passed ? "pass" : "fail";
     row.textContent = `${passed ? "PASS" : "FAIL"} — ${fixture.name}: ${decision.kind} ${decision.actionType || ""}`;

@@ -124,6 +124,55 @@ test("a performance page keeps waiting until its Find tickets control appears", 
   assert.equal(decision.state, Core.STATES.PERFORMANCE_WAITING);
 });
 
+test("recognized pages wait for other expected controls to appear", () => {
+  const cases = [
+    {
+      snapshot: { routeKind: "detail", layoutSignature: "detail-v1" },
+      state: Core.STATES.EVENT_DETAIL
+    },
+    {
+      snapshot: { routeKind: "area", layoutSignature: "area-v1" },
+      state: Core.STATES.AREA
+    },
+    {
+      snapshot: { routeKind: "ticket", layoutSignature: "ticket-v1" },
+      state: Core.STATES.TICKET
+    }
+  ];
+  for (const fixture of cases) {
+    const decision = Adapter.decide(completeSnapshot(fixture.snapshot), target);
+    assert.equal(decision.kind, "wait");
+    assert.equal(decision.state, fixture.state);
+  }
+});
+
+test("a disabled Best Available control waits instead of dispatching", () => {
+  const decision = Adapter.decide(completeSnapshot({
+    routeKind: "area",
+    layoutSignature: "area-v1",
+    seatModes: [{ key: "seat:auto", label: "Best Available", selected: false, visible: true, enabled: false }]
+  }), target);
+  assert.equal(decision.kind, "wait");
+  assert.equal(decision.state, Core.STATES.SEAT_MODE);
+});
+
+test("a configured ticket page waits for its manual submit button", () => {
+  const decision = Adapter.decide(completeSnapshot({
+    routeKind: "ticket",
+    layoutSignature: "ticket-v1",
+    tickets: [{
+      key: "ticket:full",
+      label: "全票",
+      visible: true,
+      enabled: true,
+      selectedQuantity: 2,
+      options: [{ value: "2", quantity: 2, enabled: true }]
+    }]
+  }), target);
+  assert.equal(decision.kind, "wait");
+  assert.equal(decision.state, Core.STATES.RESERVATION_READY);
+});
+
 test("show date selects the correct row when an event has multiple dates", () => {
   const snapshot = completeSnapshot({
     routeKind: "performance",

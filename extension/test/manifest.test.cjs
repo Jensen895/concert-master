@@ -96,6 +96,25 @@ test("sale watching has no expiry until the matching performance appears", () =>
   assert.match(worker, /PERFORMANCE_AVAILABLE/u);
 });
 
+test("review shows autocorrect and tixCraft login reminders", () => {
+  const popupController = fs.readFileSync(path.join(extensionRoot, "src/popup/popup.js"), "utf8");
+  const adapter = fs.readFileSync(path.join(extensionRoot, "src/adapters/tixcraft-v1.js"), "utf8");
+  assert.match(popupController, /Keyboard assistance/u);
+  assert.match(popupController, /tixCraft account/u);
+  assert.doesNotMatch(popupController, /OS-wide|OPEN_AUTOCORRECT_SETTINGS|chrome:\/\/settings/u);
+  assert.match(adapter, /accountStatus/u);
+  const popup = fs.readFileSync(path.join(extensionRoot, "src/popup/popup.html"), "utf8");
+  assert.match(popup, /data-field="name"[^>]*autocorrect="off"[^>]*spellcheck="false"/u);
+});
+
+test("armed text inputs disable autocorrect and every pending action uses waiting mode", () => {
+  const controller = fs.readFileSync(path.join(extensionRoot, "src/content/content.js"), "utf8");
+  assert.match(controller, /setAttribute\("autocorrect", "off"\)/u);
+  assert.match(controller, /setAttribute\("spellcheck", "false"\)/u);
+  assert.match(controller, /deadlineAt: null/u);
+  assert.doesNotMatch(controller, /POSTCONDITION_TIMEOUT_MS/u);
+});
+
 test("verification and final submission remain manual", () => {
   const core = fs.readFileSync(path.join(extensionRoot, "src/shared/core.js"), "utf8");
   const adapter = fs.readFileSync(path.join(extensionRoot, "src/adapters/tixcraft-v1.js"), "utf8");

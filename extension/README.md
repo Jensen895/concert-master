@@ -4,7 +4,7 @@ This directory is a load-unpacked Manifest V3 extension. It ships as plain JavaS
 
 Start a session on the event's `/activity/detail/<event-id>` page. The adapter captures the event ID from that URL, opens the unique enabled performance list, and selects the unique “Find tickets” row whose calendar date matches the configured show date. The performance list may appear inline or on `/activity/game/<event-id>`.
 
-Before ticket sales begin, an armed session remains in an untimed watching phase. It observes DOM changes and polls the open performance list once per second so a newly inserted matching “Find tickets” control is detected. The user-selected session countdown begins only when that visible control appears. Other actions retain their short postcondition deadlines.
+Before ticket sales begin, an armed session remains in an untimed watching phase. It observes DOM changes and polls the recognized page once per second so newly inserted purchase, performance, seat-mode, area, quantity, and manual-submit controls are detected. The user-selected session countdown begins only when the matching visible “Find tickets” control appears; subsequent missing controls continue waiting within that overall countdown. Ambiguous controls, wrong-event pages, unsupported layouts, and protected steps still fail closed.
 
 ## Layout
 
@@ -24,6 +24,8 @@ Before ticket sales begin, an armed session remains in an untimed watching phase
 - **Bounded Auto:** dispatches only individually allowlisted action types after all gates pass.
 
 There is no transition that silently upgrades a running session. Changing mode requires stopping and arming a new one.
+
+Review reports whether an explicit tixCraft login or logout marker was detected and confirms that keyboard assistance will be disabled on page text fields. While a session is armed, the content controller applies `autocorrect="off"`, `autocapitalize="off"`, and `spellcheck="false"` to text-entry controls, including controls inserted later, and restores their prior attributes when the session stops.
 
 The in-page top-right status card always shows the current step plus the registered event date, total ticket quantity, and maximum unit price. Clicking the card expands it to show the ticket-type breakdown, operating mode, and timer state.
 After a session is armed successfully, the larger extension popup closes automatically and leaves this compact status card visible.

@@ -208,10 +208,39 @@
     return line;
   }
 
+  function reviewReminder(title, detail, tone) {
+    const reminder = document.createElement("div");
+    reminder.className = `review-reminder ${tone}`;
+    reminder.setAttribute("role", tone === "warn" ? "alert" : "status");
+    const copy = document.createElement("div");
+    const heading = document.createElement("strong");
+    const messageText = document.createElement("p");
+    heading.textContent = title;
+    messageText.textContent = detail;
+    copy.append(heading, messageText);
+    reminder.append(copy);
+    return reminder;
+  }
+
   function renderReview(preview) {
     elements.reviewBody.replaceChildren();
     elements.reviewPanel.classList.remove("hidden");
     elements.reviewState.textContent = preview.decision?.state || preview.snapshot?.routeKind || "Unknown";
+    elements.reviewBody.append(reviewReminder(
+      "Keyboard assistance",
+      "Autocorrect, autocapitalization, and spellcheck will be disabled on page text fields while armed.",
+      "good"
+    ));
+    const accountStatus = preview.snapshot?.accountStatus || "unknown";
+    elements.reviewBody.append(reviewReminder(
+      "tixCraft account",
+      accountStatus === "loggedIn"
+        ? "Login detected."
+        : accountStatus === "loggedOut"
+          ? "You appear to be signed out. Log in before arming."
+          : "Login status could not be verified. Confirm that you are signed in before arming.",
+      accountStatus === "loggedIn" ? "good" : "warn"
+    ));
     elements.reviewBody.append(reviewLine("Adapter", preview.adapterVersion || "Unavailable", preview.ok ? "good" : "warn"));
     elements.reviewBody.append(reviewLine(
       "Event page",

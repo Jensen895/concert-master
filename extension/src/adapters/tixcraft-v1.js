@@ -12,6 +12,8 @@
   const BEST_AVAILABLE_TEXT = /^(電腦配位|best\s*available)$/iu;
   const SUBMIT_TEXT = /^(確認(張數|訂購|送出)?|下一步|送出|reserve|continue)$/iu;
   const AREA_AVAILABILITY_SUFFIX = /\s*(?:\d+\s*seat\(s\)\s*remaining|(?:剩餘|尚餘)\s*\d+(?:\s*張)?|available|尚有票券|熱賣中|sold\s*out|已售完|售完)\s*$/iu;
+  const LOGIN_TEXT = /^(登入|會員登入|log\s*in|sign\s*in)$/iu;
+  const LOGOUT_TEXT = /^(登出|log\s*out|sign\s*out)$/iu;
 
   function routeKind(url) {
     return Core.tixcraftPageIdentity(url).routeKind;
@@ -122,6 +124,35 @@
         "iframe[src*='/ticket/select-seat/']"
       ])
     };
+  }
+
+  function collectAccountStatus(document) {
+    const logoutControls = uniqueElements(document, [
+      "a[href*='/logout' i]", "a[href*='/signout' i]", "form[action*='/logout' i]"
+    ]);
+    if (logoutControls.length) return "loggedIn";
+
+    const explicitLoginControls = uniqueElements(document, [
+      "header a[href*='/login' i]", "header a[href*='/signin' i]",
+      "nav a[href*='/login' i]", "nav a[href*='/signin' i]",
+      ".utility-bar a[href*='/login' i]", ".utility-bar a[href*='/signin' i]",
+      ".account-nav a[href*='/login' i]", ".account-nav a[href*='/signin' i]"
+    ]).filter(visible);
+    if (explicitLoginControls.length) return "loggedOut";
+
+    const loginControls = uniqueElements(document, [
+      "header a", "header button", "header [role='button']",
+      ".utility-bar a", ".utility-bar button", ".utility-bar span",
+      ".account-nav a", ".account-nav button", ".account-nav span"
+    ]).filter((element) => visible(element) && LOGIN_TEXT.test(textOf(element)));
+    if (loginControls.length) return "loggedOut";
+
+    const visibleLogoutControl = uniqueElements(document, [
+      "header a", "header button", "header [role='button']",
+      ".utility-bar a", ".utility-bar button", ".utility-bar span",
+      ".account-nav a", ".account-nav button", ".account-nav span"
+    ]).some((element) => visible(element) && LOGOUT_TEXT.test(textOf(element)));
+    return visibleLogoutControl ? "loggedIn" : "unknown";
   }
 
   function layoutRoot(document, kind) {
@@ -391,6 +422,7 @@
       ready: document.readyState !== "loading",
       busy: document.documentElement?.getAttribute?.("aria-busy") === "true"
         || uniqueElements(document, [".loading:empty", "[data-loading='true']"]).some(visible),
+      accountStatus: collectAccountStatus(document),
       performanceListVisible: Boolean(performanceRoot && visible(performanceRoot)),
       signals: collectSignals(document, kind),
       entries: collectEntryCandidates(document),
@@ -426,6 +458,10 @@
     };
   }
 
+  function waitDecision(state, reason) {
+    return { kind: "wait", state, confidence: 0.99, reason };
+  }
+
   function eventMatches(snapshot, target) {
     if (!target.eventId) return false;
     return snapshot.eventId === target.eventId;
@@ -434,12 +470,7 @@
   function performanceDecision(snapshot, target, candidates = snapshot.performances || []) {
     const matches = candidates.filter((item) => item.showDate === target.showDate);
     if (matches.length === 0) {
-      return {
-        kind: "wait",
-        state: Core.STATES.PERFORMANCE_WAITING,
-        confidence: 0.99,
-        reason: "Waiting for the selected Find tickets button to appear."
-      };
+      return waitDecision(Core.STATES.PERFORMANCE_WAITING, "Waiting for the selected Find tickets button to appear.");
     }
     if (matches.length > 1) return stopDecision("More than one performance matches the selected show date.");
     const candidate = matches[0];
@@ -482,20 +513,12 @@
       const visiblePerformances = (snapshot.performances || []).filter((item) => item.visible);
       if (visiblePerformances.length) return performanceDecision(snapshot, target, visiblePerformances);
       if (snapshot.performanceListVisible) {
-        return {
-          kind: "wait",
-          state: Core.STATES.PERFORMANCE_WAITING,
-          confidence: 0.99,
-          reason: "Waiting for the selected Find tickets button to appear."
-        };
+        return waitDecision(Core.STATES.PERFORMANCE_WAITING, "Waiting for the selected Find tickets button to appear.");
       }
 
       const entries = snapshot.entries || [];
-      if (entries.length !== 1) {
-        return stopDecision(entries.length
-          ? "The event purchase entry is ambiguous."
-          : "The event purchase entry is not present in this fixture-backed layout.");
-      }
+      if (entries.length === 0) return waitDecision(Core.STATES.EVENT_DETAIL, "Waiting for the event purchase button to appear.");
+      if (entries.length > 1) return stopDecision("The event purchase entry is ambiguous.");
       const candidate = entries[0];
       if (!candidate.visible || !candidate.enabled) {
         return { kind: "wait", state: Core.STATES.EVENT_DETAIL, confidence: 0.99, reason: "The event purchase entry is not actionable yet." };
@@ -510,10 +533,16 @@
     const bestModes = snapshot.seatModes.filter((mode) => BEST_AVAILABLE_TEXT.test(Core.normalizeLabel(mode.label)));
     if (bestModes.length && !bestModes.some((mode) => mode.selected)) {
       if (bestModes.length !== 1) return stopDecision("Best Available does not resolve to exactly one control.");
+      if (!bestModes[0].visible || !bestModes[0].enabled) {
+        return waitDecision(Core.STATES.SEAT_MODE, "Waiting for the Best Available control to become actionable.");
+      }
       return actionDecision(Core.STATES.SEAT_MODE, Core.ACTIONS.SELECT_SEAT_MODE, bestModes[0]);
     }
 
     if (snapshot.routeKind === "area") {
+      if (!snapshot.areas.length) {
+        return waitDecision(Core.STATES.AREA, "Waiting for the ticket-area controls to appear.");
+      }
       const plan = Core.resolveAreaPlan(
         snapshot.areas,
         target,
@@ -527,6 +556,9 @@
     }
 
     if (snapshot.routeKind === "ticket") {
+      if (!snapshot.tickets.length) {
+        return waitDecision(Core.STATES.TICKET, "Waiting for the ticket-quantity controls to appear.");
+      }
       const ticketPlan = Core.resolveTicketPlan(snapshot.tickets, target.ticketRequests);
       if (ticketPlan.status !== "resolved") return handoffDecision(ticketPlan.reason, "ticketUnavailable");
       for (const assignment of ticketPlan.assignments) {
@@ -573,7 +605,9 @@
 
       const submits = snapshot.submits.filter((item) => item.visible);
       if (submits.length > 1) return stopDecision("The reservation control is ambiguous.");
-      if (submits.length === 0) return handoffDecision("Quantity and acknowledgement are ready, but the manual submit control is unavailable.", "submitUnavailable");
+      if (submits.length === 0) {
+        return waitDecision(Core.STATES.RESERVATION_READY, "Waiting for the manual submit button to appear.");
+      }
       return handoffDecision(
         "Quantity and acknowledgement are ready. Review the page and submit manually.",
         "manualSubmit",
@@ -599,6 +633,7 @@
       eventId: snapshot.eventId,
       layoutSignature: snapshot.layoutSignature,
       ready: snapshot.ready,
+      accountStatus: snapshot.accountStatus,
       performanceListVisible: snapshot.performanceListVisible,
       signals: snapshot.signals,
       entries: copyItems(snapshot.entries || []),

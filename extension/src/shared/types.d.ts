@@ -49,3 +49,5 @@ export interface ArmedSession {
   timerStartedAt: number | null;
   expiresAt: number | null;
 }
+
+export type TixcraftAccountStatus = "loggedIn" | "loggedOut" | "unknown";

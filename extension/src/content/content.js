@@ -5,14 +5,17 @@
   const Adapter = root.TixcraftAdapterV1;
   if (!Core || !Adapter) return;
 
-  const POSTCONDITION_TIMEOUT_MS = 8_000;
   const WAIT_POLL_INTERVAL_MS = 1_000;
   const MIN_STABLE_MS = 16;
+  const TEXT_ENTRY_SELECTOR = [
+    "input:not([type])", "input[type='text' i]", "input[type='search' i]",
+    "input[type='email' i]", "input[type='url' i]", "input[type='tel' i]",
+    "textarea", "[contenteditable='true']"
+  ].join(",");
   const state = {
     session: null,
     observer: null,
     frameId: 0,
-    deadlineTimer: 0,
     pollTimer: 0,
     overlayTimer: 0,
     pageGeneration: crypto.randomUUID(),
@@ -24,6 +27,7 @@
     lastPresentedSignature: "",
     lastHandoffSignature: "",
     inventoryFailureKey: "",
+    autocorrectChanges: new Map(),
     overlayHost: null,
     highlighted: null,
     stopped: false
@@ -57,6 +61,35 @@
     state.overlayTimer = 0;
     state.overlayHost?.remove();
     state.overlayHost = null;
+  }
+
+  function protectTextEntry(element) {
+    if (!element?.matches?.(TEXT_ENTRY_SELECTOR)) return;
+    const attributes = ["autocorrect", "autocapitalize", "spellcheck"];
+    if (!state.autocorrectChanges.has(element)) {
+      state.autocorrectChanges.set(element, Object.fromEntries(attributes.map((name) => [name, {
+        present: element.hasAttribute(name),
+        value: element.getAttribute(name)
+      }])));
+    }
+    if (element.getAttribute("autocorrect") !== "off") element.setAttribute("autocorrect", "off");
+    if (element.getAttribute("autocapitalize") !== "off") element.setAttribute("autocapitalize", "off");
+    if (element.getAttribute("spellcheck") !== "false") element.setAttribute("spellcheck", "false");
+  }
+
+  function protectTextEntries(rootNode = document) {
+    protectTextEntry(rootNode);
+    for (const element of rootNode.querySelectorAll?.(TEXT_ENTRY_SELECTOR) || []) protectTextEntry(element);
+  }
+
+  function restoreTextEntries() {
+    for (const [element, original] of state.autocorrectChanges) {
+      for (const [name, attribute] of Object.entries(original)) {
+        if (attribute.present) element.setAttribute(name, attribute.value);
+        else element.removeAttribute(name);
+      }
+    }
+    state.autocorrectChanges.clear();
   }
 
   function formatDate(value) {
@@ -194,10 +227,9 @@
     state.observer = null;
     if (state.frameId) cancelAnimationFrame(state.frameId);
     state.frameId = 0;
-    if (state.deadlineTimer) clearTimeout(state.deadlineTimer);
-    state.deadlineTimer = 0;
     if (state.pollTimer) clearTimeout(state.pollTimer);
     state.pollTimer = 0;
+    restoreTextEntries();
     clearOverlay();
   }
 
@@ -352,7 +384,6 @@
   }
 
   function beginPending(decision, actionId, decisionAt) {
-    const waitsForSale = decision.actionType === Core.ACTIONS.OPEN_PERFORMANCES;
     const pending = {
       actionId,
       actionType: decision.actionType,
@@ -360,7 +391,7 @@
       areaKey: decision.actionType === Core.ACTIONS.SELECT_AREA ? decision.targetKey : undefined,
       dispatchedAt: Date.now(),
       dispatchedMonotonic: monotonicNow(),
-      deadlineAt: waitsForSale ? null : Date.now() + POSTCONDITION_TIMEOUT_MS
+      deadlineAt: null
     };
     state.pendingAction = pending;
     state.session.pendingAction = pending;
@@ -378,7 +409,6 @@
         at: Date.now()
       }
     });
-    if (!waitsForSale) state.deadlineTimer = setTimeout(schedule, POSTCONDITION_TIMEOUT_MS + 20);
   }
 
   function handleInventoryFailure(snapshot) {
@@ -459,8 +489,6 @@
         state.session.pendingAction = null;
         state.locked = false;
         if (completed.actionType === Core.ACTIONS.SELECT_SEAT_MODE) state.session.bestAvailableConfirmed = true;
-        if (state.deadlineTimer) clearTimeout(state.deadlineTimer);
-        state.deadlineTimer = 0;
         send({
           type: "POSTCONDITION_MET",
           actionId: completed.actionId,
@@ -474,8 +502,6 @@
             at: Date.now()
           }
         });
-      } else if (Number.isFinite(state.pendingAction.deadlineAt) && Date.now() >= state.pendingAction.deadlineAt) {
-        return terminalStop(`Postcondition timed out after ${state.pendingAction.actionType}.`);
       } else {
         schedulePoll();
         return;
@@ -556,7 +582,14 @@
     state.lastPresentedSignature = "";
     state.lastHandoffSignature = "";
     state.inventoryFailureKey = "";
-    state.observer = new MutationObserver(() => {
+    protectTextEntries(document);
+    state.observer = new MutationObserver((records) => {
+      for (const record of records) {
+        if (record.type === "attributes") protectTextEntry(record.target);
+        for (const node of record.addedNodes || []) {
+          if (node.nodeType === Node.ELEMENT_NODE) protectTextEntries(node);
+        }
+      }
       state.lastMutationAt = performance.now();
       schedule();
     });

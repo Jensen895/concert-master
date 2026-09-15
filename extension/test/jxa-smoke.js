@@ -82,6 +82,99 @@ function run(argv) {
   }, target, {});
   assert(waitingForSale.kind === "wait" && waitingForSale.state === ConcertMasterCore.STATES.PERFORMANCE_WAITING,
     "open event dropdown did not keep waiting for Find tickets");
+  const waitingForEntry = TixcraftAdapterV1.decide({
+    routeKind: "detail",
+    layoutSignature: "detail-v1",
+    ready: true,
+    busy: false,
+    performanceListVisible: false,
+    eventId: "demo",
+    signals: {},
+    entries: [],
+    performances: [],
+    seatModes: [],
+    areas: [],
+    tickets: [],
+    acknowledgements: [],
+    submits: []
+  }, target, {});
+  assert(waitingForEntry.kind === "wait" && waitingForEntry.state === ConcertMasterCore.STATES.EVENT_DETAIL,
+    "missing event purchase button did not keep waiting");
+  const waitingForArea = TixcraftAdapterV1.decide({
+    routeKind: "area",
+    layoutSignature: "area-v1",
+    ready: true,
+    busy: false,
+    eventId: "demo",
+    signals: {},
+    entries: [],
+    performances: [],
+    seatModes: [],
+    areas: [],
+    tickets: [],
+    acknowledgements: [],
+    submits: []
+  }, target, {});
+  assert(waitingForArea.kind === "wait" && waitingForArea.state === ConcertMasterCore.STATES.AREA,
+    "missing area controls did not keep waiting");
+  const waitingForTicket = TixcraftAdapterV1.decide({
+    routeKind: "ticket",
+    layoutSignature: "ticket-v1",
+    ready: true,
+    busy: false,
+    eventId: "demo",
+    signals: {},
+    entries: [],
+    performances: [],
+    seatModes: [],
+    areas: [],
+    tickets: [],
+    acknowledgements: [],
+    submits: []
+  }, target, {});
+  assert(waitingForTicket.kind === "wait" && waitingForTicket.state === ConcertMasterCore.STATES.TICKET,
+    "missing ticket controls did not keep waiting");
+  const waitingForSeatMode = TixcraftAdapterV1.decide({
+    routeKind: "area",
+    layoutSignature: "area-v1",
+    ready: true,
+    busy: false,
+    eventId: "demo",
+    signals: {},
+    entries: [],
+    performances: [],
+    seatModes: [{ key: "seat:auto", label: "Best Available", selected: false, visible: true, enabled: false }],
+    areas: [],
+    tickets: [],
+    acknowledgements: [],
+    submits: []
+  }, target, {});
+  assert(waitingForSeatMode.kind === "wait" && waitingForSeatMode.state === ConcertMasterCore.STATES.SEAT_MODE,
+    "disabled Best Available control did not keep waiting");
+  const waitingForSubmit = TixcraftAdapterV1.decide({
+    routeKind: "ticket",
+    layoutSignature: "ticket-v1",
+    ready: true,
+    busy: false,
+    eventId: "demo",
+    signals: {},
+    entries: [],
+    performances: [],
+    seatModes: [],
+    areas: [],
+    tickets: [{
+      key: "ticket:full",
+      label: "全票",
+      visible: true,
+      enabled: true,
+      selectedQuantity: 2,
+      options: [{ value: "2", quantity: 2, enabled: true }]
+    }],
+    acknowledgements: [],
+    submits: []
+  }, target, {});
+  assert(waitingForSubmit.kind === "wait" && waitingForSubmit.state === ConcertMasterCore.STATES.RESERVATION_READY,
+    "missing manual submit button did not keep waiting");
   const productionArea = TixcraftAdapterV1.parseAreaDescriptor("B1看台103區5980 26 seat(s) remaining", "5980區");
   assert(productionArea.label === "B1看台103區" && productionArea.priceTwd === 5980, "production area parsing failed");
   const areaPlan = ConcertMasterCore.resolveAreaPlan([

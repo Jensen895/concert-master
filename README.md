@@ -34,7 +34,7 @@ Use **Command + Shift + .** to stop immediately. Chrome allows this shortcut to 
 - Exact calendar-date matching; optional normalized area-name priorities use unique-match enforcement.
 - Best Available only. Graphical seat maps always hand off.
 - No reloads, polling requests, private endpoints, CAPTCHA processing, identity/OTP automation, final submission, or payment inspection. Only TixCraft's exact required acknowledgement checkbox is allowlisted.
-- Every dispatch has a unique action ID and must reach an explicit postcondition within eight seconds.
+- Every dispatch has a unique action ID and must reach an explicit postcondition before the armed session expires; recognized pages keep polling while expected controls are still absent.
 - Unknown layouts, adapter mismatch, blocks, ambiguous controls, stale targets, and origin changes fail closed.
 - Session state lives in `chrome.storage.session`. Local telemetry is bounded and redacted.
 
