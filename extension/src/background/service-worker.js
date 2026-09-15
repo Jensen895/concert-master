@@ -10,7 +10,7 @@ let updateChain = Promise.resolve();
 let recordChain = Promise.resolve();
 const SESSION_MESSAGE_TYPES = new Set([
   "SESSION_EVENT", "ACTION_DISPATCHED", "POSTCONDITION_MET", "BEST_AVAILABLE_CONFIRMED",
-  "INVENTORY_FAILURE", "AREA_REVIEW_REQUIRED", "HANDOFF", "CART_HELD", "STOP_SESSION"
+  "INVENTORY_FAILURE", "HANDOFF", "CART_HELD", "STOP_SESSION"
 ]);
 
 async function getSession() {
@@ -102,17 +102,8 @@ function buildPermissions(raw, mode) {
     selectSeatMode: bounded && raw?.selectSeatMode !== false,
     selectArea: bounded && raw?.selectArea !== false,
     setQuantity: bounded && raw?.setQuantity !== false,
-    submitReservation: bounded && raw?.submitReservation === true
+    acknowledgeTerms: bounded && raw?.acknowledgeTerms !== false
   };
-}
-
-function sameAreaAuthorization(left, right) {
-  return Boolean(left && right)
-    && left.adapterVersion === right.adapterVersion
-    && left.pageGeneration === right.pageGeneration
-    && left.areaKey === right.areaKey
-    && Core.normalizeLabel(left.label) === Core.normalizeLabel(right.label)
-    && left.priceTwd === right.priceTwd;
 }
 
 async function handleArm(request) {
@@ -145,11 +136,6 @@ async function handleArm(request) {
     || preview.decision?.confidence < 0.98) {
     return { ok: false, errors: [preview.decision?.reason || "The current layout is not safely actionable."] };
   }
-  if (request.areaReviewConfirmed
-    && !sameAreaAuthorization(request.reviewedAreaAuthorization, preview.areaAuthorization)) {
-    return { ok: false, errors: ["The resolved area changed after review. Review the page again."] };
-  }
-
   const old = await getSession();
   if (old?.tabId != null) await sendToTab(old.tabId, { type: "STOP_RUNTIME", reason: "A new session was armed." });
 
@@ -174,7 +160,6 @@ async function handleArm(request) {
       const label = Core.normalizedKey(mode.label);
       return mode.selected && (label === "電腦配位" || label === "best available");
     }).length === 1,
-    areaAuthorization: request.areaReviewConfirmed ? preview.areaAuthorization : null,
     locked: false,
     createdAt: now,
     expiresAt: now + durationMinutes * 60_000,
@@ -185,35 +170,6 @@ async function handleArm(request) {
   await record({ type: "armed", state: session.status.state, adapterVersion: session.adapterVersion });
   await sendToTab(tab.id, { type: "START_SESSION", session });
   return { ok: true, session, preview };
-}
-
-async function handleAreaAuthorization(request) {
-  const session = await getSession();
-  if (!session) return { ok: false, errors: ["No session is armed."] };
-  const tab = await chrome.tabs.get(session.tabId).catch(() => null);
-  const preview = await previewInTab(tab, session.target, {
-    attemptedAreaKeys: session.attemptedAreaKeys,
-    allowAreaFallback: session.allowAreaFallback,
-    bestAvailableConfirmed: session.bestAvailableConfirmed
-  });
-  if (!preview.areaAuthorization
-    || preview.areaPlan?.status !== "resolved"
-    || preview.decision?.kind !== "action"
-    || preview.decision?.actionType !== Core.ACTIONS.SELECT_AREA) {
-    return { ok: false, errors: [preview.areaPlan?.reason || "No unique approved area can be authorized."] };
-  }
-  if (!request.confirmed) return { ok: false, errors: ["Confirm the resolved label and price before continuing."] };
-  if (!sameAreaAuthorization(request.reviewedAreaAuthorization, preview.areaAuthorization)) {
-    return { ok: false, errors: ["The resolved area changed after review. Review it again."] };
-  }
-  const next = await updateSession((current) => ({
-    ...current,
-    areaAuthorization: preview.areaAuthorization,
-    locked: false,
-    status: { state: Core.STATES.AREA, reason: "Area reviewed", updatedAt: Date.now() }
-  }));
-  await sendToTab(session.tabId, { type: "RESUME_SESSION", session: next });
-  return { ok: true, session: next, preview };
 }
 
 async function handleResume() {
@@ -227,9 +183,6 @@ async function handleResume() {
   });
   if (!preview.ok || ["stop", "handoff"].includes(preview.decision?.kind)) {
     return { ok: false, errors: [preview.decision?.reason || "The protected or unknown state is still present."] };
-  }
-  if (preview.decision?.actionType === Core.ACTIONS.SELECT_AREA) {
-    return { ok: false, needsAreaReview: true, preview, errors: ["Review and confirm the resolved area before resuming."] };
   }
   const next = await updateSession((current) => ({
     ...current,
@@ -288,7 +241,6 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       return previewInTab(await activeTab(), message.target, message.options);
     }
     if (message?.type === "ARM_REQUEST") return handleArm(message);
-    if (message?.type === "AUTHORIZE_AREA") return handleAreaAuthorization(message);
     if (message?.type === "RESUME_REQUEST") return handleResume();
     if (message?.type === "STOP_REQUEST") {
       await stopSession(message.reason || "Stopped by user.");
@@ -356,21 +308,11 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
         if (sender.tab?.id !== session.tabId) return session;
         session.attemptedAreaKeys = [...new Set([...(session.attemptedAreaKeys || []), message.areaKey])];
         session.pendingAction = null;
-        session.areaAuthorization = null;
         session.locked = true;
         session.status = { state: Core.STATES.HANDOFF, reason: "inventoryFailure", updatedAt: Date.now() };
         return session;
       });
       await record({ type: "inventoryFailure", reason: "explicitInventoryFailure", adapterVersion: next?.adapterVersion });
-      return { ok: true };
-    }
-    if (message?.type === "AREA_REVIEW_REQUIRED") {
-      await updateSession((session) => ({
-        ...session,
-        locked: true,
-        status: { state: Core.STATES.HANDOFF, reason: "areaReviewRequired", updatedAt: Date.now() }
-      }));
-      await notify("Review section choice", "Open Concert Master to confirm the resolved section and price.");
       return { ok: true };
     }
     if (message?.type === "HANDOFF") {

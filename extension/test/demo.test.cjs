@@ -27,6 +27,9 @@ test("demo exposes each adapter-backed purchase stage", () => {
   assert.match(areas, /id="zone"/u);
   assert.match(areas, /href="\/ticket\/ticket\/CM_DEMO_2026\//u);
   assert.match(tickets, /id="ticketForm"/u);
+  assert.match(tickets, /id="TicketForm_verifyCode"/u);
+  assert.match(tickets, /id="TicketForm_agree"/u);
+  assert.match(tickets, /data-ticket-type="學生優惠票"/u);
   assert.match(tickets, /action="\/order\/confirm\/"/u);
   assert.match(order, /data-cart-held/u);
 });

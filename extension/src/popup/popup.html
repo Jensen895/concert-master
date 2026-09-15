@@ -48,19 +48,10 @@
           <span>Show date</span>
           <input id="showDate" type="date" autocomplete="off">
         </label>
-        <div class="field-grid">
-          <label class="field">
-            <span>Quantity</span>
-            <select id="quantity">
-              <option>1</option><option selected>2</option><option>3</option><option>4</option>
-              <option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
-            </select>
-          </label>
-          <label class="field">
-            <span>Maximum / ticket</span>
-            <span class="money-input"><b>NT$</b><input id="maximumPrice" inputmode="numeric" placeholder="4,800"></span>
-          </label>
-        </div>
+        <label class="field">
+          <span>Maximum ticket price</span>
+          <span class="money-input"><b>NT$</b><input id="maximumPrice" inputmode="numeric" placeholder="4,800" required></span>
+        </label>
         <div class="locked-choice"><span>Seat assignment</span><strong>Best Available</strong><i>Locked</i></div>
       </section>
 
@@ -69,26 +60,34 @@
           <div><span class="step">03</span><h2>Area priority</h2></div>
           <button id="addArea" type="button" class="text-button">+ Add</button>
         </div>
-        <p class="note compact">Exact labels by default. Use <code>*</code> or <code>?</code> only when needed.</p>
+        <p class="note compact">Enter each event's exact area name from highest to lowest priority. Areas above the maximum ticket price are skipped.</p>
         <div id="areaList" class="area-list"></div>
         <label class="toggle-row">
-          <span><strong>Allow lower priorities</strong><small>Otherwise the first unavailable choice pauses.</small></span>
+          <span><strong>Allow lower priorities</strong><small>Price-limit failures always move to the next area.</small></span>
           <input id="allowFallback" type="checkbox" checked><i></i>
         </label>
       </section>
 
       <section class="section">
         <div class="section-heading">
-          <div><span class="step">04</span><h2>Ticket & permission</h2></div>
+          <div><span class="step">04</span><h2>Ticket</h2></div>
         </div>
-        <label class="field">
-          <span>Ticket types, in priority order</span>
-          <input id="ticketTypes" autocomplete="off" placeholder="全票, 一般票">
-        </label>
-        <label class="toggle-row danger-toggle">
-          <span><strong>Allow one reservation submit</strong><small>Stops at a held cart. Never enters payment.</small></span>
-          <input id="submitReservation" type="checkbox"><i></i>
-        </label>
+        <div class="ticket-request-list" role="group" aria-label="Requested ticket quantities">
+          <label class="ticket-request-row">
+            <input id="fullTicketEnabled" type="checkbox" checked>
+            <strong>全票：</strong>
+            <input id="fullTicketQuantity" type="number" min="1" max="10" step="1" value="2" inputmode="numeric" aria-label="全票 quantity">
+            <span>張</span>
+          </label>
+          <label class="ticket-request-row">
+            <input id="discountTicketEnabled" type="checkbox">
+            <strong>優惠票：</strong>
+            <input id="discountTicketQuantity" type="number" min="1" max="10" step="1" value="1" inputmode="numeric" aria-label="優惠票 quantity" disabled>
+            <span>張</span>
+          </label>
+        </div>
+        <p class="note">Ticket names are matched when they contain 全票 or 優惠票. If the page has no such labels, its first ticket row is treated as 全票.</p>
+        <p class="note">Quantity and the required acknowledgement can run automatically. Verification and final submission always remain manual.</p>
         <label class="field compact-field">
           <span>Session expires after</span>
           <select id="duration">
@@ -103,10 +102,6 @@
       <section id="reviewPanel" class="review-panel hidden" aria-live="polite">
         <div class="review-title"><span>Review</span><b id="reviewState">Known state</b></div>
         <div id="reviewBody"></div>
-        <label id="confirmAreaRow" class="confirm-row hidden">
-          <input id="confirmArea" type="checkbox">
-          <span>I confirm this resolved section and price.</span>
-        </label>
       </section>
 
       <div id="errorBox" class="error-box hidden" role="alert"></div>
@@ -114,7 +109,6 @@
       <footer>
         <button id="reviewButton" type="button" class="secondary-button">Review current page</button>
         <button id="armButton" type="button" class="primary-button">Arm Assist</button>
-        <button id="authorizeButton" type="button" class="primary-button hidden">Authorize & resume</button>
         <button id="resumeButton" type="button" class="secondary-button hidden">Resume</button>
         <button id="stopButton" type="button" class="stop-button hidden">Stop now</button>
       </footer>
@@ -125,9 +119,7 @@
       <div class="area-row">
         <span class="drag" aria-hidden="true">⠿</span>
         <span class="rank"></span>
-        <label><span>Label</span><input data-field="displayLabel" placeholder="A2"></label>
-        <label><span>Pattern</span><input data-field="namePattern" placeholder="A2"></label>
-        <label class="area-price"><span>Cap</span><input data-field="maximumUnitPriceTwd" inputmode="numeric" placeholder="Any"></label>
+        <label><span>Area format and name for each event</span><input data-field="name" placeholder="B1看台103區"></label>
         <div class="row-actions">
           <button type="button" data-action="up" title="Move up">↑</button>
           <button type="button" data-action="down" title="Move down">↓</button>

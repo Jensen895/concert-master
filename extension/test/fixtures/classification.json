@@ -20,7 +20,7 @@
     "expected": { "kind": "wait", "state": "performanceWaiting" }
   },
   {
-    "name": "challenge always hands off",
+    "name": "ticket challenge allows quantity setup before handoff",
     "snapshot": {
       "routeKind": "ticket",
       "layoutSignature": "ticket-v1",
@@ -28,7 +28,7 @@
       "signals": { "challenge": true },
       "tickets": [{ "key": "ticket:1", "label": "全票", "visible": true, "enabled": true, "selectedQuantity": 0, "options": [{ "value": "2", "quantity": 2, "enabled": true }] }]
     },
-    "expected": { "kind": "handoff", "state": "handoff" }
+    "expected": { "kind": "action", "state": "ticketSelection", "actionType": "setQuantity" }
   },
   {
     "name": "visible block always stops",
@@ -98,7 +98,7 @@
     "expected": { "kind": "action", "state": "ticketSelection", "actionType": "setQuantity" }
   },
   {
-    "name": "reservation becomes ready only after quantity selection",
+    "name": "ready ticket waits for manual submit",
     "snapshot": {
       "routeKind": "ticket",
       "layoutSignature": "ticket-v1",
@@ -106,7 +106,7 @@
       "tickets": [{ "key": "ticket:full", "label": "全票", "visible": true, "enabled": true, "selectedQuantity": 2, "options": [{ "value": "2", "quantity": 2, "enabled": true }] }],
       "submits": [{ "key": "submit:1", "label": "確認張數", "visible": true, "enabled": true }]
     },
-    "expected": { "kind": "action", "state": "reservationReady", "actionType": "submitReservation" }
+    "expected": { "kind": "handoff", "state": "handoff" }
   },
   {
     "name": "held cart ends automation",

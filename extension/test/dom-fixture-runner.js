@@ -8,13 +8,12 @@
   const target = {
     showDate: "2026-09-20",
     eventId: "demo",
-    quantity: 2,
     seatMode: "bestAvailable",
     areaPriorities: [
-      { displayLabel: "A2", namePattern: "A2" },
-      { displayLabel: "A3", namePattern: "A3" }
+      { name: "A2" },
+      { name: "A3" }
     ],
-    ticketTypePriorities: ["全票"],
+    ticketRequests: [{ kind: "full", quantity: 2 }],
     maximumUnitPriceTwd: 4800
   };
   const cases = [
@@ -23,6 +22,13 @@
       url: "https://tixcraft.com/activity/detail/demo",
       html: `<main data-event-detail><h1>Aurora Taipei</h1>
         <a href="/activity/game/demo">立即購票</a></main>`,
+      expected: ["action", Core.ACTIONS.OPEN_PERFORMANCES]
+    },
+    {
+      name: "English event-detail DOM recognizes Buy Tickets",
+      url: "https://tixcraft.com/activity/detail/demo",
+      html: `<main data-event-detail><h1>Maroon 5 Taipei</h1>
+        <a class="btn-buy" href="/activity/game/demo">BUY TICKETS</a></main>`,
       expected: ["action", Core.ACTIONS.OPEN_PERFORMANCES]
     },
     {
@@ -54,18 +60,79 @@
       expected: ["action", Core.ACTIONS.SELECT_AREA, "area:a3"]
     },
     {
-      name: "ticket DOM resolves quantity",
+      name: "area-first DOM does not require an earlier seat-mode control",
+      url: "https://tixcraft.com/ticket/area/demo",
+      html: `<ul id="zone">
+        <li><a data-area-id="a2"><span class="area-name">A2</span><span class="price">NT$5,200</span></a></li>
+        <li><a data-area-id="a3"><span class="area-name">A3</span><span class="price">NT$4,500</span></a></li>
+      </ul>`,
+      context: { allowAreaFallback: true, bestAvailableConfirmed: false },
+      expected: ["action", Core.ACTIONS.SELECT_AREA, "area:a3"]
+    },
+    {
+      name: "production area DOM resolves its nested list, exact name, and group price",
+      url: "https://tixcraft.com/ticket/area/demo",
+      html: `<input type="radio" id="select_form_auto" name="select_form" value="auto" checked>
+        <label for="select_form_auto">Best Available</label>
+        <div class="zone area-list">
+          <div class="zone-label" data-id="group_0"><b>5,200區</b></div>
+          <ul id="group_0" class="area-list"><li class="select_form_b"><a id="live_a2">A2 5200 <font>Available</font></a></li></ul>
+          <div class="zone-label" data-id="group_1"><b>4,500區</b></div>
+          <ul id="group_1" class="area-list"><li class="select_form_b"><a id="live_a3">A3 4500 <font>12 seat(s) remaining</font></a></li></ul>
+        </div>`,
+      expected: ["action", Core.ACTIONS.SELECT_AREA, "area:live_a3"]
+    },
+    {
+      name: "ticket DOM partially matches full-ticket text",
       url: "https://tixcraft.com/ticket/ticket/demo",
       html: `<form id="ticketForm"><div class="ticket-unit">
-        <span class="ticket-name">全票</span><select data-ticket-type="全票"><option value="0">0</option><option value="2">2</option></select>
+        <span class="ticket-name">搖滾區全票（預售）</span><select data-ticket-type="搖滾區全票（預售）"><option value="0">0</option><option value="2">2</option></select>
         <button id="submitButton" type="submit">確認張數</button>
       </div></form>`,
       expected: ["action", Core.ACTIONS.SET_QUANTITY]
     },
     {
+      name: "generic ticket DOM defaults its first row to full ticket",
+      url: "https://tixcraft.com/ticket/ticket/demo",
+      html: `<form id="ticketForm"><table class="ticket-list"><tbody>
+        <tr><td class="ticket-name">票種 A</td><td><select name="TicketForm[ticketPrice][a]"><option value="0">0</option><option value="2">2</option></select></td></tr>
+        <tr><td class="ticket-name">票種 B</td><td><select name="TicketForm[ticketPrice][b]"><option value="0">0</option><option value="2">2</option></select></td></tr>
+      </tbody></table></form>`,
+      expected: ["action", Core.ACTIONS.SET_QUANTITY, "ticket:0"]
+    },
+    {
+      name: "ticket DOM advances from full ticket to discount ticket",
+      url: "https://tixcraft.com/ticket/ticket/demo",
+      target: {
+        ...target,
+        ticketRequests: [{ kind: "full", quantity: 2 }, { kind: "discount", quantity: 1 }]
+      },
+      html: `<form id="ticketForm"><table class="ticket-list"><tbody>
+        <tr><td class="ticket-name">搖滾區全票</td><td><select id="full" name="TicketForm[ticketPrice][full]"><option value="2" selected>2</option></select></td></tr>
+        <tr><td class="ticket-name">學生優惠票</td><td><select id="discount" name="TicketForm[ticketPrice][discount]"><option value="0" selected>0</option><option value="1">1</option></select></td></tr>
+      </tbody></table></form>`,
+      expected: ["action", Core.ACTIONS.SET_QUANTITY, "ticket:discount"]
+    },
+    {
+      name: "ticket DOM acknowledges only the exact TixCraft checkbox",
+      url: "https://tixcraft.com/ticket/ticket/demo",
+      html: `<form id="ticketForm"><div class="ticket-unit">
+        <span class="ticket-name">全票</span><select data-ticket-type="全票"><option value="2" selected>2</option></select>
+        <label for="TicketForm_agree">I hereby acknowledge</label><input id="TicketForm_agree" type="checkbox">
+        <input id="TicketForm_verifyCode" value=""><img id="TicketForm_verifyCode-image" src="/ticket/captcha">
+        <button id="submitButton" type="submit">確認張數</button>
+      </div></form>`,
+      expected: ["action", Core.ACTIONS.ACKNOWLEDGE_TERMS]
+    },
+    {
       name: "CAPTCHA DOM hands off",
       url: "https://tixcraft.com/ticket/ticket/demo",
-      html: `<form id="ticketForm"><input name="captcha_answer"></form>`,
+      html: `<form id="ticketForm"><div class="ticket-unit">
+        <span class="ticket-name">全票</span><select data-ticket-type="全票"><option value="2" selected>2</option></select>
+        <label for="TicketForm_agree">I hereby acknowledge</label><input id="TicketForm_agree" type="checkbox" checked>
+        <input id="TicketForm_verifyCode" value=""><img id="TicketForm_verifyCode-image" src="/ticket/captcha">
+        <button id="submitButton" type="submit">確認張數</button>
+      </div></form>`,
       expected: ["handoff", undefined]
     },
     {
@@ -84,7 +151,7 @@
     fixtureRoot.innerHTML = fixture.html;
     await nextFrame();
     const snapshot = Adapter.collectSnapshot(document, fixture.url);
-    const decision = Adapter.decide(snapshot, target, { allowAreaFallback: true, bestAvailableConfirmed: true });
+    const decision = Adapter.decide(snapshot, fixture.target || target, fixture.context || { allowAreaFallback: true, bestAvailableConfirmed: true });
     const passed = decision.kind === fixture.expected[0]
       && decision.actionType === fixture.expected[1]
       && (fixture.expected[2] === undefined || decision.targetKey === fixture.expected[2]);

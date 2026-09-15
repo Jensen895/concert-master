@@ -35,14 +35,14 @@
                 <td><span class="ticket-name" data-ticket-label>全票</span> <b class="ticket-price">4,800</b></td>
                 <td><select class="mobile-select" name="TicketForm[ticketPrice][full]" data-ticket-type="全票" aria-label="全票張數"><option value="0" selected>0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></td><td></td>
               </tr>
-              <tr class="ticket-unit muted-ticket" data-ticket-row>
-                <td><span class="ticket-name" data-ticket-label>愛心票</span> <b class="ticket-price">2,500</b></td>
-                <td><select class="mobile-select" name="TicketForm[ticketPrice][accessible]" data-ticket-type="愛心票" aria-label="愛心票張數" disabled><option value="0" selected>已售完</option></select></td><td>資格限定</td>
+              <tr class="ticket-unit" data-ticket-row>
+                <td><span class="ticket-name" data-ticket-label>學生優惠票</span> <b class="ticket-price">2,500</b></td>
+                <td><select class="mobile-select" name="TicketForm[ticketPrice][discount]" data-ticket-type="學生優惠票" aria-label="優惠票張數"><option value="0" selected>0</option><option value="1">1</option><option value="2">2</option></select></td><td>資格限定</td>
               </tr>
             </tbody>
           </table>
-          <div class="verification-preview" aria-label="測試驗證碼預覽"><div class="verification-image">cm42</div><div><div class="fake-input">此測試流程略過驗證碼</div><p>※ 真實頁面會要求輸入圖中英文字元</p><p>※ 請勿多視窗操作，以免購票失敗</p></div></div>
-          <label class="agreement"><input type="checkbox" checked><span>我已詳細閱讀且同意會員服務條款及節目資訊公告，並同意於條款範圍內進行個人資料蒐集、處理及利用。</span></label>
+          <div class="verification-preview" aria-label="測試驗證碼預覽"><div id="TicketForm_verifyCode-image" class="verification-image">cm42</div><div><input id="TicketForm_verifyCode" name="TicketForm[verifyCode]" maxlength="4" autocomplete="off" placeholder="請手動輸入 cm42"><p>※ Concert Master 不會讀取或填寫驗證碼</p><p>※ 請勿多視窗操作，以免購票失敗</p></div></div>
+          <label class="agreement" for="TicketForm_agree"><input id="TicketForm_agree" type="checkbox"><span>我已詳細閱讀且同意會員服務條款及節目資訊公告，並同意於條款範圍內進行個人資料蒐集、處理及利用。</span></label>
           <div class="form-actions"><a class="secondary-button" href="/ticket/area/CM_DEMO_2026/">重新選擇</a><button id="submitButton" class="submit-button" type="submit">確認張數</button></div>
         </form>
       </section>

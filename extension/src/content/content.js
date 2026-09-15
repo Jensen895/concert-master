@@ -177,13 +177,17 @@
 
   function present(decision, kind) {
     const signature = `${kind}:${decision.actionType}:${decision.targetKey}:${decision.reason || ""}`;
-    if (signature === state.lastPresentedSignature) return;
+    const candidate = decision.candidate?._element;
+    const targetIsStillHighlighted = state.highlighted === candidate
+      && candidate?.isConnected
+      && candidate.classList.contains("cm-pilot-target");
+    if (signature === state.lastPresentedSignature && (!candidate || targetIsStillHighlighted)) return;
     state.lastPresentedSignature = signature;
     clearHighlight();
-    const candidate = decision.candidate?._element;
     if (candidate?.isConnected) {
       state.highlighted = candidate;
       candidate.classList.add("cm-pilot-target");
+      candidate.scrollIntoView?.({ block: "center", inline: "nearest", behavior: "auto" });
       if (kind === "assist") candidate.focus?.({ preventScroll: false });
     }
     const labels = {
@@ -363,14 +367,6 @@
       reportHandoff(reason);
       return present({ ...decision, reason }, "handoff");
     }
-    if (decision.actionType === Core.ACTIONS.SELECT_AREA
-      && (state.session.areaAuthorization?.pageGeneration !== state.pageGeneration
-        || !Core.sameResolvedAreaPlan(state.session.areaAuthorization, decision.resolvedAreaPlan))) {
-      state.locked = true;
-      reportHandoff("areaReviewRequired", false, "AREA_REVIEW_REQUIRED", { plan: decision.resolvedAreaPlan.outcomes });
-      return present({ ...decision, reason: "Review the resolved section and price in the popup before selection." }, "handoff");
-    }
-
     const id = Core.actionId(state.pageGeneration, decision);
     if ((state.session.executedActionIds || []).includes(id)) return terminalStop("A duplicate action was prevented.");
     if (!candidateIsStable(decision, frameTime)) return;
@@ -456,18 +452,6 @@
         preferenceIndex: areaPlan.preferenceIndex,
         outcomes: areaPlan.outcomes
       };
-      if (areaPlan.status === "resolved"
-        && decision.kind === "action"
-        && decision.actionType === Core.ACTIONS.SELECT_AREA) {
-        response.areaAuthorization = {
-          adapterVersion: Adapter.VERSION,
-          areaKey: areaPlan.area.key,
-          label: areaPlan.area.label,
-          priceTwd: areaPlan.area.priceTwd,
-          pageGeneration: state.pageGeneration,
-          reviewedAt: Date.now()
-        };
-      }
     }
     return response;
   }

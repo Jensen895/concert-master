@@ -10,7 +10,7 @@ The existing macOS app and Node service remain in this repository as legacy scaf
 2. Enable **Developer mode**.
 3. Choose **Load unpacked** and select the [`extension`](extension/) directory.
 4. Open the event's `https://tixcraft.com/activity/detail/<event-id>` page and open Concert Master.
-5. Enter the show date, ordered areas, ticket types, quantity, and price cap. The event identity comes from the open detail-page URL.
+5. Enter the show date, exact event-specific area names in priority order, maximum ticket price, and the requested 全票/優惠票 quantities. The event identity comes from the open detail-page URL.
 6. Review the current page, choose Dry Run or Assist first, and arm the session.
 
 ## Run the local tixCraft demo
@@ -24,16 +24,16 @@ python3 -m http.server 4173 --directory demo
 
 Reload the unpacked extension, then open `http://localhost:4173/activity/detail/CM_DEMO_2026/`. The demo has four performance dates, multiple ticket prices, available and sold-out sections, quantity selection, and a held-cart result. Suggested extension inputs are documented in [`extension/demo/README.md`](extension/demo/README.md).
 
-Bounded Auto is scoped to the current tab and expires after at most 30 minutes. If real area choices are not visible when the session is first armed, it pauses at the area page so the resolved label and price can be confirmed before selection. Reservation submission is a separate, off-by-default permission.
+Bounded Auto is scoped to the current tab and expires after at most 30 minutes. It applies the configured area priorities and maximum ticket price without asking for a second section confirmation. It may set the requested quantity for each selected ticket type and check TixCraft's exact acknowledgement control, but verification codes and final submission are always manual.
 
 Use **Command + Shift + .** to stop immediately. Chrome allows this shortcut to be changed at `chrome://extensions/shortcuts`.
 
 ## Safety boundary
 
 - One session, one visible tab, one event captured from its detail-page URL, one action at a time.
-- Exact calendar-date matching with unique-match enforcement; anchored area patterns with unique-match enforcement.
+- Exact calendar-date and normalized area-name matching with unique-match enforcement.
 - Best Available only. Graphical seat maps always hand off.
-- No reloads, polling requests, private endpoints, CAPTCHA processing, identity/OTP automation, terms acceptance, or payment inspection.
+- No reloads, polling requests, private endpoints, CAPTCHA processing, identity/OTP automation, final submission, or payment inspection. Only TixCraft's exact required acknowledgement checkbox is allowlisted.
 - Every dispatch has a unique action ID and must reach an explicit postcondition within eight seconds.
 - Unknown layouts, adapter mismatch, blocks, ambiguous controls, stale targets, and origin changes fail closed.
 - Session state lives in `chrome.storage.session`. Local telemetry is bounded and redacted.

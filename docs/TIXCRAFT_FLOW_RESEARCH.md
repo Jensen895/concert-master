@@ -7,6 +7,8 @@ Research performed 2026-09-11 against public open-source projects. The useful im
 3. Read the show date from the row (normally its first cell), then activate the purchase control inside that same row.
 4. That control has appeared as a plain “Find tickets” link/button, `.btn-next`, `button[data-href]`, and historically `input[data-href]`.
 
+English event detail pages may label their entry CTA `BUY TICKETS` rather than `Buy now` or a Chinese purchase label. The adapter treats that normalized label as the same purchase-entry action while retaining unique-control enforcement.
+
 Sources:
 
 - [bouob/tickets_hunter](https://github.com/bouob/tickets_hunter), commit `e7b3ab56f205622158511ddd6e160fc274b2c9dd` (2026-08-23): current row collection, localized sale-state filtering, date-keyword matching, and row-scoped `data-href` handling.
@@ -18,6 +20,8 @@ Visual fixture references added 2026-09-11:
 
 - [djpken/tixcraft-helper `25_david.html`](https://github.com/djpken/tixcraft-helper/blob/f761e640a0b409d8894504846e289361d7962223/25_david.html), commit `f761e640a0b409d8894504846e289361d7962223` (2025-09-21): a full saved production page showing the dark utility bar, blue gradient navigation, tixCraft/Ticketmaster Taiwan lockup, breadcrumb, blurred event-art backdrop, centered poster/title, filters, and the performance table rendered inline on `/activity/detail/`.
 - [kuzco77/tixcraft-camper seat-selection screenshot](https://github.com/kuzco77/tixcraft-camper/blob/d8d426e45943acd2514e953c46bf128341793b35/.screenshot/seats.png), commit `d8d426e45943acd2514e953c46bf128341793b35` (2025-12-02): a rendered current-flow reference for the five-step progress indicator, compact event summary, Best Available/Pick Your Own switch, two-column seat map, price-group headers, availability text, and sold-out styling.
+
+The same tixcraft-camper revision includes sanitized production-shaped area markup in `element/full.html`: the unique outer container is `.zone.area-list`, while every price group is another `ul.area-list`. Available Best Available sections are `li.select_form_b > a`; their visible text concatenates an area name, the group price, and availability (for example `B1看台103區5980 Available`). Adapter v1 therefore identifies the outer container first, takes the price from its matching `.zone-label`, strips the trailing price/availability from the link text, and performs exact matching on the remaining area name.
 
 The local demo reproduces those structural and visual patterns with fictional event artwork and data. It does not copy live event assets or personal/session data from the captured files.
 

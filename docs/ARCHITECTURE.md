@@ -20,9 +20,9 @@ The content script owns the full latency-sensitive path. One `MutationObserver` 
 
 The service worker enforces the single-session/single-tab boundary, expiry alarm, navigation origin guard, global Stop command, notifications, and a 200-entry redacted telemetry ring. Target configuration and action history live only in `chrome.storage.session`. `chrome.storage.local` contains UI defaults, the non-sensitive draft, and redacted event/timing fields.
 
-The popup is the authorization surface. It validates target fields through the same shared core used by the controller. When the current page exposes areas, it shows the exact resolved label, price, and rejection outcomes. An authorization is bound to the adapter version, element key, price, label, and page generation. A later DOM/navigation generation cannot reuse it.
+The popup validates target fields through the same shared core used by the controller. When the current page exposes areas, its review shows the exact resolved label, price, and rejection outcomes. In Bounded Auto, arming the configured target authorizes selection of the first unique area that satisfies the priority and maximum-price rules; there is no second confirmation at the area page.
 
-Best Available is also carried as explicit session evidence. It is set only when the selected control is observed or the corresponding action reaches its postcondition; area and ticket actions hand off when that evidence is absent.
+When a page exposes a Best Available control, the adapter selects or verifies it before proceeding. Some events expose the area list first; for those layouts the adapter selects the resolved area and uses the resulting route as the boundary: a ticket page continues to quantity, while `/ticket/select-seat/` or an embedded seat picker hands control to the user.
 
 ## State and action boundary
 
@@ -31,12 +31,14 @@ Best Available is also carried as explicit session evidence. It is set only when
 | Event detail | Open the unique enabled performance-list entry | Performance state appears |
 | Performance selection | Select the unique row matching the configured calendar date | Performance state disappears |
 | Seat mode | Select the unique `電腦配位` / Best Available control | Area or ticket state appears |
-| Area selection | Select the first unique, available, reviewed, in-budget preference | Ticket state appears |
-| Ticket selection | Set the approved ticket type to the exact quantity | Reservation-ready state appears |
-| Reservation ready | Submit once, only with separate permission | Held cart or explicit protected state |
+| Area selection | Match exact area names and select the first unique, available preference at or below the global maximum ticket price | Seat-mode, ticket-quantity, or manual-seat handoff appears |
+| Manual seat selection | None; highlight the boundary and hand off | User chooses a seat or stops |
+| Ticket selection | Set each checked 全票/優惠票 row to its requested quantity | Another requested ticket row, required acknowledgement, or manual verification handoff appears |
+| Acknowledgement | Check only `#TicketForm_agree` | Manual verification or submit handoff appears |
+| Reservation ready | None; highlight the submit control and hand off | User reviews and submits manually |
 | Held cart | None; clear the session | User completes checkout |
 
-Challenges, OTP/identity checks, terms, and seat maps lock the controller and notify the user. Payment is a terminal boundary. Blocks, origin changes, adapter mismatch, ambiguity, low confidence, unknown signatures, duplicate action IDs, and postcondition timeout stop the session.
+CAPTCHA and verification-code fields are never read or filled. On the ticket page only, the checked 全票/優惠票 quantities and the exact `#TicketForm_agree` acknowledgement may be completed before the manual verification handoff. Matching is by partial ticket-row label. If no row contains either recognizable term, the first row is treated as 全票; this fallback is never used when a recognizable type is present. Other terms, OTP/identity checks, and seat maps lock the controller and notify the user. Final submission is manual and payment is a terminal boundary. Blocks, origin changes, adapter mismatch, ambiguity, low confidence, unknown signatures, duplicate action IDs, and postcondition timeout stop the session.
 
 ## Versioned adapter
 

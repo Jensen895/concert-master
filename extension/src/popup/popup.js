@@ -4,10 +4,11 @@
   const Core = root.ConcertMasterCore;
   const elements = Object.fromEntries([
     "statusPill", "sessionBanner", "sessionState", "sessionTimer", "modeNote", "siteBadge",
-    "showDate", "quantity", "maximumPrice", "areaList", "addArea",
-    "allowFallback", "ticketTypes", "submitReservation", "duration", "reviewPanel", "reviewState",
-    "reviewBody", "confirmAreaRow", "confirmArea", "errorBox", "reviewButton", "armButton",
-    "authorizeButton", "resumeButton", "stopButton", "areaRowTemplate"
+    "showDate", "maximumPrice", "areaList", "addArea", "allowFallback",
+    "fullTicketEnabled", "fullTicketQuantity", "discountTicketEnabled", "discountTicketQuantity",
+    "duration", "reviewPanel", "reviewState",
+    "reviewBody", "errorBox", "reviewButton", "armButton", "resumeButton", "stopButton",
+    "areaRowTemplate"
   ].map((id) => [id, document.getElementById(id)]));
 
   const ui = {
@@ -22,7 +23,7 @@
     [Core.MODES.OFF]: "Stops the session and removes all page observation.",
     [Core.MODES.DRY_RUN]: "Classifies and shows the proposed action without changing the page.",
     [Core.MODES.ASSIST]: "Highlights and focuses the exact target. You activate it.",
-    [Core.MODES.BOUNDED_AUTO]: "Runs one permitted action per confirmed state, then checks its postcondition."
+    [Core.MODES.BOUNDED_AUTO]: "Runs one permitted action per verified state, then checks its postcondition."
   };
 
   function message(payload) {
@@ -46,9 +47,7 @@
 
   function addAreaRow(area = {}) {
     const row = elements.areaRowTemplate.content.firstElementChild.cloneNode(true);
-    row.querySelector("[data-field='displayLabel']").value = area.displayLabel || "";
-    row.querySelector("[data-field='namePattern']").value = area.namePattern || area.displayLabel || "";
-    row.querySelector("[data-field='maximumUnitPriceTwd']").value = area.maximumUnitPriceTwd || "";
+    row.querySelector("[data-field='name']").value = area.name || area.namePattern || area.displayLabel || "";
     row.addEventListener("input", invalidateReview);
     row.addEventListener("click", (event) => {
       const action = event.target.dataset.action;
@@ -70,16 +69,20 @@
   }
 
   function readTarget() {
+    const ticketRequests = [];
+    if (elements.fullTicketEnabled.checked) {
+      ticketRequests.push({ kind: Core.TICKET_KINDS.FULL, quantity: Number(elements.fullTicketQuantity.value) });
+    }
+    if (elements.discountTicketEnabled.checked) {
+      ticketRequests.push({ kind: Core.TICKET_KINDS.DISCOUNT, quantity: Number(elements.discountTicketQuantity.value) });
+    }
     return {
       showDate: elements.showDate.value,
-      quantity: Number(elements.quantity.value),
       seatMode: "bestAvailable",
       areaPriorities: [...elements.areaList.children].map((row) => ({
-        displayLabel: row.querySelector("[data-field='displayLabel']").value,
-        namePattern: row.querySelector("[data-field='namePattern']").value,
-        maximumUnitPriceTwd: parsePriceInput(row.querySelector("[data-field='maximumUnitPriceTwd']").value)
+        name: row.querySelector("[data-field='name']").value
       })),
-      ticketTypePriorities: elements.ticketTypes.value.split(",").map((value) => value.trim()).filter(Boolean),
+      ticketRequests,
       maximumUnitPriceTwd: parsePriceInput(elements.maximumPrice.value)
     };
   }
@@ -99,7 +102,6 @@
     ui.preview = null;
     ui.reviewFingerprint = "";
     elements.reviewPanel.classList.add("hidden");
-    elements.confirmArea.checked = false;
     updateButtons();
     saveDraft();
   }
@@ -118,12 +120,31 @@
 
   function populate(target = {}) {
     elements.showDate.value = Core.calendarDateKey(target.showDate || target.performanceLabel);
-    elements.quantity.value = String(target.quantity || 2);
     elements.maximumPrice.value = target.maximumUnitPriceTwd || "";
-    elements.ticketTypes.value = (target.ticketTypePriorities || []).join(", ");
+    const hasConfiguredTicketRequests = Array.isArray(target.ticketRequests) || target.quantity != null;
+    let ticketRequests = Array.isArray(target.ticketRequests) ? target.ticketRequests : [];
+    if (!ticketRequests.length && target.quantity != null) {
+      const oldLabels = Array.isArray(target.ticketTypePriorities) ? target.ticketTypePriorities.join(" ") : "";
+      const kind = oldLabels.includes("優惠票") && !oldLabels.includes("全票")
+        ? Core.TICKET_KINDS.DISCOUNT
+        : Core.TICKET_KINDS.FULL;
+      ticketRequests = [{ kind, quantity: target.quantity }];
+    }
+    const fullRequest = ticketRequests.find((request) => request.kind === Core.TICKET_KINDS.FULL);
+    const discountRequest = ticketRequests.find((request) => request.kind === Core.TICKET_KINDS.DISCOUNT);
+    elements.fullTicketEnabled.checked = hasConfiguredTicketRequests ? Boolean(fullRequest) : true;
+    elements.fullTicketQuantity.value = String(fullRequest?.quantity || target.quantity || 2);
+    elements.discountTicketEnabled.checked = Boolean(discountRequest);
+    elements.discountTicketQuantity.value = String(discountRequest?.quantity || 1);
+    syncTicketControls();
     elements.areaList.replaceChildren();
-    const areas = target.areaPriorities?.length ? target.areaPriorities : [{ displayLabel: "", namePattern: "" }];
+    const areas = target.areaPriorities?.length ? target.areaPriorities : [{ name: "" }];
     areas.forEach(addAreaRow);
+  }
+
+  function syncTicketControls() {
+    elements.fullTicketQuantity.disabled = Boolean(ui.session) || !elements.fullTicketEnabled.checked;
+    elements.discountTicketQuantity.disabled = Boolean(ui.session) || !elements.discountTicketEnabled.checked;
   }
 
   function setMode(mode, stopIfOff = false) {
@@ -132,8 +153,6 @@
       button.classList.toggle("selected", button.dataset.mode === mode);
     });
     elements.modeNote.textContent = modeNotes[mode];
-    elements.submitReservation.closest(".toggle-row").classList.toggle("hidden", mode !== Core.MODES.BOUNDED_AUTO);
-    if (mode !== Core.MODES.BOUNDED_AUTO) elements.submitReservation.checked = false;
     if (mode === Core.MODES.OFF && stopIfOff) stop();
     invalidateReview();
     updateButtons();
@@ -152,14 +171,13 @@
       elements.reviewButton.textContent = ui.session.locked ? "Review current state" : "Review current page";
     } else {
       elements.resumeButton.classList.add("hidden");
-      elements.authorizeButton.classList.add("hidden");
       elements.reviewButton.textContent = "Review current page";
     }
     document.querySelectorAll(".section input, .section select, .section button, [data-mode]").forEach((control) => {
       control.disabled = active;
     });
+    syncTicketControls();
     elements.reviewButton.disabled = false;
-    elements.confirmArea.disabled = false;
     tickTimer();
     updateButtons();
   }
@@ -210,8 +228,8 @@
     } else {
       elements.reviewBody.append(reviewLine(
         "Area verification",
-        "Not on this page — Auto will pause before area selection",
-        "warn"
+        "Not on this page — Auto will apply the configured priorities",
+        "good"
       ));
     }
     if (preview.snapshot?.areas?.length && preview.areaPlan?.status !== "resolved") {
@@ -224,27 +242,19 @@
         elements.reviewBody.append(reviewLine("Visible performance", performance.label || performance.showDate, "warn"));
       }
     }
-    const resolved = preview.areaPlan?.status === "resolved" && preview.areaAuthorization;
-    elements.confirmAreaRow.classList.toggle("hidden", !resolved);
-    elements.confirmArea.checked = false;
-    elements.authorizeButton.classList.toggle("hidden", !(ui.session?.locked && resolved));
-    if (ui.session?.locked && resolved) elements.resumeButton.classList.add("hidden");
     updateButtons();
   }
 
   function updateButtons() {
     const validation = Core.sanitizeTarget(readTarget());
     const reviewed = ui.reviewFingerprint === draftFingerprint();
-    const areaNeedsConfirmation = Boolean(ui.preview?.areaAuthorization);
     const previewSafe = Boolean(ui.preview)
       && ui.preview.decision?.kind !== "stop"
       && !(ui.mode === Core.MODES.BOUNDED_AUTO && ui.preview.decision?.kind === "handoff")
       && ui.preview.decision?.confidence >= 0.98;
     elements.armButton.textContent = `Arm ${ui.mode === Core.MODES.BOUNDED_AUTO ? "Bounded Auto" : ui.mode === Core.MODES.DRY_RUN ? "Dry Run" : "Assist"}`;
-    elements.armButton.disabled = !validation.ok || ui.mode === Core.MODES.OFF || !reviewed || !previewSafe
-      || (areaNeedsConfirmation && !elements.confirmArea.checked);
+    elements.armButton.disabled = !validation.ok || ui.mode === Core.MODES.OFF || !reviewed || !previewSafe;
     if (!ui.session) elements.reviewButton.disabled = !validation.ok || ui.mode === Core.MODES.OFF;
-    elements.authorizeButton.disabled = areaNeedsConfirmation && !elements.confirmArea.checked;
   }
 
   async function review() {
@@ -273,7 +283,6 @@
     const validation = Core.sanitizeTarget(readTarget());
     if (!validation.ok) return showError(validation.errors);
     if (ui.reviewFingerprint !== draftFingerprint()) return showError("Review the current page after changing the target.");
-    if (ui.preview?.areaAuthorization && !elements.confirmArea.checked) return showError("Confirm the resolved area and price.");
     elements.armButton.disabled = true;
     const response = await message({
       type: "ARM_REQUEST",
@@ -283,15 +292,13 @@
       durationMinutes: Number(elements.duration.value),
       allowAreaFallback: elements.allowFallback.checked,
       inventoryAttemptCap: 3,
-      areaReviewConfirmed: elements.confirmArea.checked,
-      reviewedAreaAuthorization: ui.preview?.areaAuthorization,
       permissions: {
         openPerformances: true,
         selectPerformance: true,
         selectSeatMode: true,
         selectArea: true,
         setQuantity: true,
-        submitReservation: elements.submitReservation.checked
+        acknowledgeTerms: true
       }
     });
     if (!response?.ok) {
@@ -300,19 +307,6 @@
     }
     ui.session = response.session;
     saveDraft();
-    renderSession();
-  }
-
-  async function authorizeArea() {
-    if (!elements.confirmArea.checked) return showError("Confirm the resolved section and price.");
-    const response = await message({
-      type: "AUTHORIZE_AREA",
-      confirmed: true,
-      reviewedAreaAuthorization: ui.preview?.areaAuthorization
-    });
-    if (!response?.ok) return showError(response?.errors || "The area could not be authorized.");
-    ui.session = response.session;
-    elements.authorizeButton.classList.add("hidden");
     renderSession();
   }
 
@@ -343,13 +337,13 @@
       if (elements.areaList.children.length < 12) addAreaRow();
       invalidateReview();
     });
+    elements.fullTicketEnabled.addEventListener("change", syncTicketControls);
+    elements.discountTicketEnabled.addEventListener("change", syncTicketControls);
     for (const input of document.querySelectorAll("input, select")) {
-      if (!input.closest(".area-row") && input !== elements.confirmArea) input.addEventListener("input", invalidateReview);
+      if (!input.closest(".area-row")) input.addEventListener("input", invalidateReview);
     }
-    elements.confirmArea.addEventListener("change", updateButtons);
     elements.reviewButton.addEventListener("click", review);
     elements.armButton.addEventListener("click", arm);
-    elements.authorizeButton.addEventListener("click", authorizeArea);
     elements.resumeButton.addEventListener("click", resume);
     elements.stopButton.addEventListener("click", stop);
   }
@@ -361,7 +355,6 @@
     populate(ui.session?.target || (await chrome.storage.local.get("draft")).draft || {});
     elements.duration.value = String(defaults.durationMinutes || 10);
     elements.allowFallback.checked = defaults.allowAreaFallback !== false;
-    elements.submitReservation.checked = Boolean(ui.session?.permissions?.submitReservation);
     setMode(ui.session?.mode || defaults.mode || Core.MODES.ASSIST);
     const identity = Core.tixcraftPageIdentity(response.tab?.url || "");
     const supported = Core.allowedOrigin(response.tab?.url || "")

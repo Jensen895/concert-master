@@ -1,11 +1,15 @@
 export type OperatingMode = "off" | "dryRun" | "assist" | "boundedAuto";
 
 export interface AreaPreference {
-  /** User-visible value retained for confirmation in the popup. */
-  displayLabel: string;
-  /** Adapter-v1 exact glob: * matches many characters and ? matches one. */
-  namePattern: string;
-  maximumUnitPriceTwd?: number;
+  /** Exact event-specific area name, ordered from highest to lowest priority. */
+  name: string;
+}
+
+export interface TicketRequest {
+  /** The standardized ticket category selected in the popup. */
+  kind: "full" | "discount";
+  /** Requested quantity for this ticket category. */
+  quantity: number;
 }
 
 export interface TicketTarget {
@@ -13,11 +17,10 @@ export interface TicketTarget {
   showDate: string;
   /** Captured from the detail-page URL when the session is armed. */
   eventId?: string;
-  quantity: number;
   seatMode: "bestAvailable";
   areaPriorities: AreaPreference[];
-  ticketTypePriorities: string[];
-  maximumUnitPriceTwd?: number;
+  ticketRequests: TicketRequest[];
+  maximumUnitPriceTwd: number;
 }
 
 export interface ActionPermissions {
@@ -26,7 +29,7 @@ export interface ActionPermissions {
   selectSeatMode: boolean;
   selectArea: boolean;
   setQuantity: boolean;
-  submitReservation: boolean;
+  acknowledgeTerms: boolean;
 }
 
 export interface ArmedSession {
