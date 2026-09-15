@@ -37,6 +37,12 @@ function run(argv) {
   assert(ConcertMasterCore.normalizeLabel(" Ａ2\n區 ") === "A2 區", "normalization failed");
   assert(ConcertMasterCore.calendarDateKey("2026/9/20 (日) 19:30") === "2026-09-20", "show date normalization failed");
   assert(ConcertMasterCore.calendarDateKey("2026-02-29") === "", "invalid show date accepted");
+  assert(!ConcertMasterCore.targetPerformanceAppeared({
+    performances: [{ showDate: "2026-09-20", visible: false }]
+  }, target), "hidden Find tickets control started the session timer");
+  assert(ConcertMasterCore.targetPerformanceAppeared({
+    performances: [{ showDate: "2026-09-20", visible: true }]
+  }, target), "visible Find tickets control did not start the session timer");
   assert(ConcertMasterCore.parseTwd("NT$ 4,800") === 4800, "price parsing failed");
   const partialTicketPlan = ConcertMasterCore.resolveTicketPlan([
     { key: "full", label: "搖滾區全票 NT$4,800", visible: true, enabled: true },
@@ -58,6 +64,24 @@ function run(argv) {
   ], [{ kind: "full", quantity: 2 }]);
   assert(noFullFallback.status === "unavailable", "full ticket incorrectly fell back when a recognizable type existed");
   assert(TixcraftAdapterV1.isActionLabel("BUY TICKETS"), "English Buy Tickets entry label was rejected");
+  const waitingForSale = TixcraftAdapterV1.decide({
+    routeKind: "detail",
+    layoutSignature: "detail-v1",
+    ready: true,
+    busy: false,
+    performanceListVisible: true,
+    eventId: "demo",
+    signals: {},
+    entries: [{ key: "event:1", label: "立即購票", visible: true, enabled: true }],
+    performances: [],
+    seatModes: [],
+    areas: [],
+    tickets: [],
+    acknowledgements: [],
+    submits: []
+  }, target, {});
+  assert(waitingForSale.kind === "wait" && waitingForSale.state === ConcertMasterCore.STATES.PERFORMANCE_WAITING,
+    "open event dropdown did not keep waiting for Find tickets");
   const productionArea = TixcraftAdapterV1.parseAreaDescriptor("B1看台103區5980 26 seat(s) remaining", "5980區");
   assert(productionArea.label === "B1看台103區" && productionArea.priceTwd === 5980, "production area parsing failed");
   const areaPlan = ConcertMasterCore.resolveAreaPlan([
@@ -215,9 +239,52 @@ function run(argv) {
       visible: true,
       enabled: true
     }],
+    verificationInputs: [{
+      key: "verification:TicketForm_verifyCode",
+      label: "Verification code",
+      visible: true,
+      enabled: true
+    }],
     submits: []
   }, target, {});
   assert(acknowledgement.actionType === ConcertMasterCore.ACTIONS.ACKNOWLEDGE_TERMS, "required acknowledgement was not selected before verification handoff");
+  const readyForVerification = TixcraftAdapterV1.decide({
+    routeKind: "ticket",
+    layoutSignature: "ticket-v1",
+    ready: true,
+    busy: false,
+    eventId: "demo",
+    signals: { challenge: true },
+    entries: [],
+    performances: [],
+    seatModes: [],
+    areas: [],
+    tickets: [{
+      key: "ticket:full",
+      label: "全票",
+      visible: true,
+      enabled: true,
+      selectedQuantity: 2,
+      options: [{ value: "2", quantity: 2, enabled: true }]
+    }],
+    acknowledgements: [{
+      key: "acknowledgement:TicketForm_agree",
+      label: "I hereby acknowledge",
+      checked: true,
+      visible: true,
+      enabled: true
+    }],
+    verificationInputs: [{
+      key: "verification:TicketForm_verifyCode",
+      label: "Verification code",
+      visible: true,
+      enabled: true
+    }],
+    submits: []
+  }, target, {});
+  assert(readyForVerification.signal === "challenge"
+    && readyForVerification.targetKey === "verification:TicketForm_verifyCode",
+  "verification handoff did not expose the exact CAPTCHA input as its focus target");
   assert(TixcraftAdapterV1.postconditionMet(
     { actionType: ConcertMasterCore.ACTIONS.SELECT_AREA },
     { state: ConcertMasterCore.STATES.SEAT_MODE }

@@ -73,12 +73,39 @@ test("runtime contains no tixCraft network or reload primitive", () => {
   assert.doesNotMatch(sources, /\bfetch\s*\(|XMLHttpRequest|\.reload\s*\(/u);
 });
 
+test("the in-page status card exposes the registered request and expands on click", () => {
+  const controller = fs.readFileSync(path.join(extensionRoot, "src/content/content.js"), "utf8");
+  assert.match(controller, /data-value="date"/u);
+  assert.match(controller, /data-value="tickets"/u);
+  assert.match(controller, /data-value="price"/u);
+  assert.match(controller, /aria-expanded="false"/u);
+  assert.match(controller, /card\.addEventListener\("click"/u);
+});
+
+test("arming closes the large popup after the session starts", () => {
+  const popupController = fs.readFileSync(path.join(extensionRoot, "src/popup/popup.js"), "utf8");
+  assert.match(popupController, /ui\.session = response\.session;[\s\S]*?window\.close\(\);/u);
+});
+
+test("sale watching has no expiry until the matching performance appears", () => {
+  const controller = fs.readFileSync(path.join(extensionRoot, "src/content/content.js"), "utf8");
+  const worker = fs.readFileSync(path.join(extensionRoot, "src/background/service-worker.js"), "utf8");
+  assert.match(controller, /targetPerformanceAppeared/u);
+  assert.match(controller, /WAIT_POLL_INTERVAL_MS/u);
+  assert.match(worker, /expiresAt: timerStarted \?[^:]+: null/u);
+  assert.match(worker, /PERFORMANCE_AVAILABLE/u);
+});
+
 test("verification and final submission remain manual", () => {
   const core = fs.readFileSync(path.join(extensionRoot, "src/shared/core.js"), "utf8");
   const adapter = fs.readFileSync(path.join(extensionRoot, "src/adapters/tixcraft-v1.js"), "utf8");
+  const controller = fs.readFileSync(path.join(extensionRoot, "src/content/content.js"), "utf8");
   const popup = fs.readFileSync(path.join(extensionRoot, "src/popup/popup.html"), "utf8");
   assert.doesNotMatch(core, /SUBMIT_RESERVATION/u);
   assert.doesNotMatch(popup, /submitReservation/u);
   assert.match(adapter, /uniqueElements\(scope, \["#TicketForm_agree"\]\)/u);
+  assert.match(adapter, /uniqueElements\(scope, \["#TicketForm_verifyCode"\]\)/u);
+  assert.match(controller, /completedActionType === Core\.ACTIONS\.ACKNOWLEDGE_TERMS/u);
+  assert.match(controller, /decision\.signal === "challenge"/u);
   assert.match(adapter, /Concert Master will not read or fill the code/u);
 });

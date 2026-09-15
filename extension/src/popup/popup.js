@@ -184,10 +184,16 @@
 
   function tickTimer() {
     if (!ui.session) return;
+    if (!Number.isFinite(ui.session.expiresAt)) {
+      elements.sessionTimer.textContent = "Waiting";
+      elements.sessionTimer.title = "The countdown starts when the selected Find tickets button appears.";
+      return;
+    }
     const remaining = Math.max(0, ui.session.expiresAt - Date.now());
     const minutes = Math.floor(remaining / 60_000);
     const seconds = Math.floor((remaining % 60_000) / 1_000);
     elements.sessionTimer.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    elements.sessionTimer.title = "Time remaining after Find tickets appeared.";
   }
 
   function reviewLine(label, value, tone = "") {
@@ -310,6 +316,7 @@
     ui.session = response.session;
     saveDraft();
     renderSession();
+    window.close();
   }
 
   async function resume() {

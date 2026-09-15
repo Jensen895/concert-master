@@ -29,6 +29,18 @@ test("show dates normalize without applying a timezone conversion", () => {
   assert.equal(Core.calendarDateKey("2026-02-29"), "");
 });
 
+test("the session timer starts only after the matching performance appears visibly", () => {
+  const snapshot = {
+    performances: [
+      { showDate: "2026-09-19", visible: true },
+      { showDate: "2026-09-20", visible: false }
+    ]
+  };
+  assert.equal(Core.targetPerformanceAppeared(snapshot, target()), false);
+  snapshot.performances[1].visible = true;
+  assert.equal(Core.targetPerformanceAppeared(snapshot, target()), true);
+});
+
 test("tixCraft page identity follows the event id through the purchase flow", () => {
   assert.deepEqual(Core.tixcraftPageIdentity("https://tixcraft.com/activity/detail/26_DEMO"), { routeKind: "detail", eventId: "26_DEMO" });
   assert.deepEqual(Core.tixcraftPageIdentity("https://tixcraft.com/activity/game/26_DEMO"), { routeKind: "performance", eventId: "26_DEMO" });

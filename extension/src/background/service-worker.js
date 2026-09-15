@@ -10,8 +10,12 @@ let updateChain = Promise.resolve();
 let recordChain = Promise.resolve();
 const SESSION_MESSAGE_TYPES = new Set([
   "SESSION_EVENT", "ACTION_DISPATCHED", "POSTCONDITION_MET", "BEST_AVAILABLE_CONFIRMED",
-  "INVENTORY_FAILURE", "HANDOFF", "CART_HELD", "STOP_SESSION"
+  "INVENTORY_FAILURE", "PERFORMANCE_AVAILABLE", "HANDOFF", "CART_HELD", "STOP_SESSION"
 ]);
+
+function hasRunningTimer(session) {
+  return Number.isFinite(session?.expiresAt);
+}
 
 async function getSession() {
   return (await chrome.storage.session.get(SESSION_KEY))[SESSION_KEY] || null;
@@ -141,6 +145,7 @@ async function handleArm(request) {
 
   const durationMinutes = Math.min(30, Math.max(1, Number(request.durationMinutes) || 10));
   const now = Date.now();
+  const timerStarted = Core.targetPerformanceAppeared(preview.snapshot, validation.value);
   const session = {
     id: crypto.randomUUID(),
     tabId: tab.id,
@@ -162,11 +167,18 @@ async function handleArm(request) {
     }).length === 1,
     locked: false,
     createdAt: now,
-    expiresAt: now + durationMinutes * 60_000,
-    status: { state: preview.decision?.state || Core.STATES.LOADING, reason: "Armed", updatedAt: now }
+    durationMinutes,
+    timerStartedAt: timerStarted ? now : null,
+    expiresAt: timerStarted ? now + durationMinutes * 60_000 : null,
+    status: {
+      state: preview.decision?.state || Core.STATES.LOADING,
+      reason: timerStarted ? "Tickets available" : "Waiting for ticket sales",
+      updatedAt: now
+    }
   };
+  await chrome.alarms.clear(SESSION_ALARM);
   await chrome.storage.session.set({ [SESSION_KEY]: session });
-  await chrome.alarms.create(SESSION_ALARM, { when: session.expiresAt });
+  if (hasRunningTimer(session)) await chrome.alarms.create(SESSION_ALARM, { when: session.expiresAt });
   await record({ type: "armed", state: session.status.state, adapterVersion: session.adapterVersion });
   await sendToTab(tab.id, { type: "START_SESSION", session });
   return { ok: true, session, preview };
@@ -205,7 +217,9 @@ chrome.runtime.onInstalled.addListener(async () => {
 
 chrome.runtime.onStartup.addListener(async () => {
   const session = await getSession();
-  if (session && Date.now() >= session.expiresAt) await stopSession("Session expired.", { notify: true });
+  if (hasRunningTimer(session) && Date.now() >= session.expiresAt) {
+    await stopSession("Session expired.", { notify: true });
+  }
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
@@ -249,7 +263,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
     if (message?.type === "CONTENT_READY") {
       const session = await getSession();
       if (!session || sender.tab?.id !== session.tabId) return { ok: true, session: null };
-      if (Date.now() >= session.expiresAt) {
+      if (hasRunningTimer(session) && Date.now() >= session.expiresAt) {
         await stopSession("Session expired.", { tellContent: false, notify: true });
         return { ok: true, session: null };
       }
@@ -302,6 +316,24 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
         return session;
       });
       return { ok: true };
+    }
+    if (message?.type === "PERFORMANCE_AVAILABLE") {
+      const detectedAt = Number.isFinite(message.detectedAt) ? message.detectedAt : Date.now();
+      const next = await updateSession((session) => {
+        if (sender.tab?.id !== session.tabId || hasRunningTimer(session)) return session;
+        const durationMinutes = Math.min(30, Math.max(1, Number(session.durationMinutes) || 10));
+        session.timerStartedAt = detectedAt;
+        session.expiresAt = detectedAt + durationMinutes * 60_000;
+        session.status = {
+          state: Core.STATES.PERFORMANCE,
+          reason: "Find tickets appeared — timer started",
+          updatedAt: Date.now()
+        };
+        return session;
+      });
+      if (hasRunningTimer(next)) await chrome.alarms.create(SESSION_ALARM, { when: next.expiresAt });
+      await record({ type: "performanceAvailable", state: Core.STATES.PERFORMANCE, adapterVersion: next?.adapterVersion });
+      return { ok: Boolean(next), session: next };
     }
     if (message?.type === "INVENTORY_FAILURE") {
       const next = await updateSession((session) => {

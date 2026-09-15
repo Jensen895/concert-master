@@ -4,6 +4,8 @@ This directory is a load-unpacked Manifest V3 extension. It ships as plain JavaS
 
 Start a session on the event's `/activity/detail/<event-id>` page. The adapter captures the event ID from that URL, opens the unique enabled performance list, and selects the unique “Find tickets” row whose calendar date matches the configured show date. The performance list may appear inline or on `/activity/game/<event-id>`.
 
+Before ticket sales begin, an armed session remains in an untimed watching phase. It observes DOM changes and polls the open performance list once per second so a newly inserted matching “Find tickets” control is detected. The user-selected session countdown begins only when that visible control appears. Other actions retain their short postcondition deadlines.
+
 ## Layout
 
 - `manifest.json` grants the two tixCraft HTTPS origins and the local demo host, plus storage, notifications, alarms, active-tab access, and tab lifecycle access for origin-change Stop. Runtime validation limits the demo host to exactly `http://localhost:4173`.
@@ -23,7 +25,10 @@ Start a session on the event's `/activity/detail/<event-id>` page. The adapter c
 
 There is no transition that silently upgrades a running session. Changing mode requires stopping and arming a new one.
 
-On a recognized ticket page, Bounded Auto may set the configured 全票 and/or 優惠票 quantities and click only the exact `#TicketForm_agree` acknowledgement. Ticket labels are partial-matched on those terms; if neither term appears anywhere, only the first row may stand in for 全票. It never reads or fills `#TicketForm_verifyCode` and never submits the form. After those preparatory actions it pauses so verification and final submission remain manual.
+The in-page top-right status card always shows the current step plus the registered event date, total ticket quantity, and maximum unit price. Clicking the card expands it to show the ticket-type breakdown, operating mode, and timer state.
+After a session is armed successfully, the larger extension popup closes automatically and leaves this compact status card visible.
+
+On a recognized ticket page, Bounded Auto may set the configured 全票 and/or 優惠票 quantities and click only the exact `#TicketForm_agree` acknowledgement. Ticket labels are partial-matched on those terms; if neither term appears anywhere, only the first row may stand in for 全票. After the acknowledgement postcondition is confirmed, it focuses the exact `#TicketForm_verifyCode` input so the user can type immediately. It never reads or fills that input and never submits the form; verification and final submission remain manual.
 
 ## Area priorities
 

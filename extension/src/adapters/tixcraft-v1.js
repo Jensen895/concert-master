@@ -354,6 +354,17 @@
       });
   }
 
+  function collectVerificationInputs(document, scope = document) {
+    return uniqueElements(scope, ["#TicketForm_verifyCode"])
+      .map((input, index) => ({
+        key: keyFor(input, "verification", index),
+        label: "Verification code",
+        visible: visible(input),
+        enabled: enabled(input),
+        _element: input
+      }));
+  }
+
   function collectSubmitControls(document, scope = document) {
     return uniqueElements(scope, [
       "button[type='submit']", "input[type='submit']", "button[data-action='reserve']", "#submitButton"
@@ -380,6 +391,7 @@
       ready: document.readyState !== "loading",
       busy: document.documentElement?.getAttribute?.("aria-busy") === "true"
         || uniqueElements(document, [".loading:empty", "[data-loading='true']"]).some(visible),
+      performanceListVisible: Boolean(performanceRoot && visible(performanceRoot)),
       signals: collectSignals(document, kind),
       entries: collectEntryCandidates(document),
       performances: performanceRoot
@@ -389,6 +401,7 @@
       areas: collectAreas(document, pageRoot || document),
       tickets: collectTickets(document, pageRoot || document),
       acknowledgements: collectAcknowledgements(document, pageRoot || document),
+      verificationInputs: collectVerificationInputs(document, pageRoot || document),
       submits: collectSubmitControls(document, pageRoot || document)
     };
   }
@@ -420,11 +433,15 @@
 
   function performanceDecision(snapshot, target, candidates = snapshot.performances || []) {
     const matches = candidates.filter((item) => item.showDate === target.showDate);
-    if (matches.length !== 1) {
-      return stopDecision(matches.length
-        ? "More than one performance matches the selected show date."
-        : "The selected show date is not present in this fixture-backed layout.");
+    if (matches.length === 0) {
+      return {
+        kind: "wait",
+        state: Core.STATES.PERFORMANCE_WAITING,
+        confidence: 0.99,
+        reason: "Waiting for the selected Find tickets button to appear."
+      };
     }
+    if (matches.length > 1) return stopDecision("More than one performance matches the selected show date.");
     const candidate = matches[0];
     if (!candidate.visible || !candidate.enabled) {
       return { kind: "wait", state: Core.STATES.PERFORMANCE_WAITING, confidence: 0.99, reason: "The target performance is not actionable yet." };
@@ -464,6 +481,14 @@
     if (snapshot.routeKind === "detail") {
       const visiblePerformances = (snapshot.performances || []).filter((item) => item.visible);
       if (visiblePerformances.length) return performanceDecision(snapshot, target, visiblePerformances);
+      if (snapshot.performanceListVisible) {
+        return {
+          kind: "wait",
+          state: Core.STATES.PERFORMANCE_WAITING,
+          confidence: 0.99,
+          reason: "Waiting for the selected Find tickets button to appear."
+        };
+      }
 
       const entries = snapshot.entries || [];
       if (entries.length !== 1) {
@@ -535,9 +560,14 @@
       }
 
       if (signals.challenge) {
+        const verificationInputs = (snapshot.verificationInputs || [])
+          .filter((input) => input.visible && input.enabled);
+        const candidate = verificationInputs.length === 1 ? verificationInputs[0] : undefined;
         return handoffDecision(
           "Enter the verification code, review the page, and submit manually. Concert Master will not read or fill the code.",
-          "challenge"
+          "challenge",
+          false,
+          candidate ? { candidate, targetKey: candidate.key } : {}
         );
       }
 
@@ -569,6 +599,7 @@
       eventId: snapshot.eventId,
       layoutSignature: snapshot.layoutSignature,
       ready: snapshot.ready,
+      performanceListVisible: snapshot.performanceListVisible,
       signals: snapshot.signals,
       entries: copyItems(snapshot.entries || []),
       performances: copyItems(snapshot.performances, (item) => ({ showDate: item.showDate })),
@@ -582,7 +613,8 @@
         selectedQuantity: item.selectedQuantity,
         options: item.options
       })),
-      acknowledgements: copyItems(snapshot.acknowledgements || [], (item) => ({ checked: item.checked }))
+      acknowledgements: copyItems(snapshot.acknowledgements || [], (item) => ({ checked: item.checked })),
+      verificationInputs: copyItems(snapshot.verificationInputs || [])
     };
   }
 

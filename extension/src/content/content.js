@@ -6,12 +6,15 @@
   if (!Core || !Adapter) return;
 
   const POSTCONDITION_TIMEOUT_MS = 8_000;
+  const WAIT_POLL_INTERVAL_MS = 1_000;
   const MIN_STABLE_MS = 16;
   const state = {
     session: null,
     observer: null,
     frameId: 0,
     deadlineTimer: 0,
+    pollTimer: 0,
+    overlayTimer: 0,
     pageGeneration: crypto.randomUUID(),
     lastMutationAt: performance.now(),
     pendingAction: null,
@@ -50,8 +53,54 @@
 
   function clearOverlay() {
     clearHighlight();
+    if (state.overlayTimer) clearInterval(state.overlayTimer);
+    state.overlayTimer = 0;
     state.overlayHost?.remove();
     state.overlayHost = null;
+  }
+
+  function formatDate(value) {
+    const parts = String(value || "").split("-").map(Number);
+    if (parts.length !== 3 || parts.some((part) => !Number.isInteger(part))) return value || "Not set";
+    return new Intl.DateTimeFormat(undefined, {
+      year: "numeric", month: "short", day: "numeric", timeZone: "UTC"
+    }).format(new Date(Date.UTC(parts[0], parts[1] - 1, parts[2])));
+  }
+
+  function formatPrice(value) {
+    return Number.isFinite(value) ? `NT$${value.toLocaleString("en-US")}` : "Not set";
+  }
+
+  function ticketSummary(target, detailed = false) {
+    const labels = { full: "Full", discount: "Discount" };
+    const requests = Array.isArray(target?.ticketRequests) ? target.ticketRequests : [];
+    if (detailed) {
+      return requests.map((request) => `${labels[request.kind] || request.kind} × ${request.quantity}`).join(" · ") || "Not set";
+    }
+    const total = requests.reduce((sum, request) => sum + (Number(request.quantity) || 0), 0);
+    return `${total} ticket${total === 1 ? "" : "s"}`;
+  }
+
+  function timerSummary(session) {
+    if (!Number.isFinite(session?.expiresAt)) return "Starts when Find tickets appears";
+    const remaining = Math.max(0, session.expiresAt - Date.now());
+    const minutes = Math.floor(remaining / 60_000);
+    const seconds = Math.floor((remaining % 60_000) / 1_000);
+    return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")} remaining`;
+  }
+
+  function updateOverlaySessionDetails() {
+    const shadow = state.overlayHost?.__cmShadow;
+    const target = state.session?.target;
+    if (!shadow || !target) return;
+    shadow.querySelector("[data-value='date']").textContent = formatDate(target.showDate);
+    shadow.querySelector("[data-value='tickets']").textContent = ticketSummary(target);
+    shadow.querySelector("[data-value='price']").textContent = formatPrice(target.maximumUnitPriceTwd);
+    shadow.querySelector("[data-detail='date']").textContent = formatDate(target.showDate);
+    shadow.querySelector("[data-detail='tickets']").textContent = ticketSummary(target, true);
+    shadow.querySelector("[data-detail='price']").textContent = formatPrice(target.maximumUnitPriceTwd);
+    shadow.querySelector("[data-detail='mode']").textContent = state.session.mode;
+    shadow.querySelector("[data-detail='timer']").textContent = timerSummary(state.session);
   }
 
   // attachShadow({mode:"closed"}) hides shadowRoot, including from this script on
@@ -66,27 +115,73 @@
       shadow.innerHTML = `
         <style>
           :host { all: initial; }
-          .card { position: fixed; z-index: 2147483647; right: 18px; top: 18px; width: 294px;
-            box-sizing: border-box; padding: 13px 14px; color: #f8f7ff; border: 1px solid rgb(255 255 255 / 13%);
+          * { box-sizing: border-box; }
+          .card { position: fixed; z-index: 2147483647; right: 18px; top: 18px; width: 326px; max-width: calc(100vw - 36px);
+            padding: 13px 14px; color: #f8f7ff; border: 1px solid rgb(255 255 255 / 13%);
             border-radius: 14px; background: rgb(22 20 31 / 96%); box-shadow: 0 14px 42px rgb(0 0 0 / 35%);
-            font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; backdrop-filter: blur(14px); }
-          .top { display: flex; gap: 8px; align-items: center; margin-bottom: 5px; }
-          .dot { width: 8px; height: 8px; border-radius: 50%; background: #a78bfa; box-shadow: 0 0 0 4px rgb(167 139 250 / 14%); }
+            font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; text-align: left;
+            appearance: none; margin: 0; backdrop-filter: blur(14px); cursor: pointer; transition: width .18s ease, border-color .18s ease; }
+          .card:hover { border-color: rgb(167 139 250 / 48%); }
+          .card:focus-visible { outline: 3px solid rgb(167 139 250 / 45%); outline-offset: 2px; }
+          .card[data-expanded="true"] { width: 390px; }
+          .top { display: flex; gap: 9px; align-items: center; margin-bottom: 6px; }
+          .heading { min-width: 0; flex: 1; }
+          .eyebrow { display: block; color: #8f899d; font-size: 9px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+          .dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: #a78bfa; box-shadow: 0 0 0 4px rgb(167 139 250 / 14%); }
           .card[data-kind="handoff"] .dot { background: #fbba45; box-shadow: 0 0 0 4px rgb(251 186 69 / 15%); }
           .card[data-kind="success"] .dot { background: #4ade80; box-shadow: 0 0 0 4px rgb(74 222 128 / 15%); }
-          strong { font-size: 13px; letter-spacing: .01em; }
-          p { margin: 0; color: #c8c5d4; }
+          .title { display: block; overflow: hidden; font-size: 13px; letter-spacing: .01em; text-overflow: ellipsis; white-space: nowrap; }
+          .chevron { color: #968daa; font-size: 15px; transform: rotate(90deg); transition: transform .18s ease; }
+          .card[data-expanded="true"] .chevron { transform: rotate(-90deg); }
+          .current-detail { margin: 0; color: #c8c5d4; font-size: 12px; }
+          .summary { display: grid; grid-template-columns: 1.2fr .8fr 1fr; gap: 6px; margin-top: 11px; }
+          .summary div { min-width: 0; padding: 7px 8px; border: 1px solid rgb(255 255 255 / 7%); border-radius: 8px; background: rgb(255 255 255 / 3%); }
+          .summary span, .details dt { display: block; color: #817a90; font-size: 8px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+          .summary b { display: block; overflow: hidden; margin-top: 2px; color: #e8e4f1; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+          .expanded { display: none; margin-top: 12px; padding-top: 11px; border-top: 1px solid rgb(255 255 255 / 9%); }
+          .card[data-expanded="true"] .expanded { display: block; }
+          .details { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 14px; margin: 0; }
+          .details div { min-width: 0; }
+          .details dd { margin: 2px 0 0; color: #eeeaf7; font-size: 12px; overflow-wrap: anywhere; }
+          .details .wide { grid-column: 1 / -1; }
+          .timer { color: #bdaeff !important; font-variant-numeric: tabular-nums; }
+          .hint { display: block; margin-top: 11px; color: #746d80; font-size: 9px; text-align: center; }
         </style>
-        <section class="card" role="status" aria-live="polite">
-          <div class="top"><span class="dot"></span><strong></strong></div><p></p>
-        </section>`;
+        <button type="button" class="card" data-expanded="false" aria-expanded="false" aria-label="Concert Master status. Click to expand.">
+          <div class="top"><span class="dot"></span><span class="heading"><span class="eyebrow">Current step</span><strong class="title"></strong></span><span class="chevron" aria-hidden="true">›</span></div>
+          <p class="current-detail" role="status" aria-live="polite"></p>
+          <div class="summary" aria-label="Registered ticket request">
+            <div><span>Date</span><b data-value="date"></b></div>
+            <div><span>Quantity</span><b data-value="tickets"></b></div>
+            <div><span>Maximum</span><b data-value="price"></b></div>
+          </div>
+          <div class="expanded">
+            <dl class="details">
+              <div><dt>Event date</dt><dd data-detail="date"></dd></div>
+              <div><dt>Maximum unit price</dt><dd data-detail="price"></dd></div>
+              <div class="wide"><dt>Requested tickets</dt><dd data-detail="tickets"></dd></div>
+              <div><dt>Mode</dt><dd data-detail="mode"></dd></div>
+              <div><dt>Session timer</dt><dd class="timer" data-detail="timer"></dd></div>
+            </dl>
+            <span class="hint">Click again to collapse</span>
+          </div>
+        </button>`;
+      const card = shadow.querySelector(".card");
+      card.addEventListener("click", () => {
+        const expanded = card.dataset.expanded !== "true";
+        card.dataset.expanded = String(expanded);
+        card.setAttribute("aria-expanded", String(expanded));
+        card.setAttribute("aria-label", `Concert Master status. Click to ${expanded ? "collapse" : "expand"}.`);
+      });
       document.documentElement.appendChild(host);
       state.overlayHost = host;
+      state.overlayTimer = setInterval(updateOverlaySessionDetails, 1_000);
     }
     const shadow = state.overlayHost.__cmShadow;
     shadow.querySelector(".card").dataset.kind = kind;
-    shadow.querySelector("strong").textContent = title;
-    shadow.querySelector("p").textContent = detail;
+    shadow.querySelector(".title").textContent = title;
+    shadow.querySelector(".current-detail").textContent = detail;
+    updateOverlaySessionDetails();
   }
 
   function teardown() {
@@ -101,6 +196,8 @@
     state.frameId = 0;
     if (state.deadlineTimer) clearTimeout(state.deadlineTimer);
     state.deadlineTimer = 0;
+    if (state.pollTimer) clearTimeout(state.pollTimer);
+    state.pollTimer = 0;
     clearOverlay();
   }
 
@@ -112,6 +209,42 @@
   function schedule() {
     if (!state.session || state.frameId) return;
     state.frameId = requestAnimationFrame(processFrame);
+  }
+
+  function schedulePoll() {
+    if (!state.session || state.pollTimer) return;
+    state.pollTimer = setTimeout(() => {
+      state.pollTimer = 0;
+      schedule();
+    }, WAIT_POLL_INTERVAL_MS);
+  }
+
+  function ensureCountdownStarted(snapshot) {
+    if (Number.isFinite(state.session?.expiresAt)
+      || !Core.targetPerformanceAppeared(snapshot, state.session?.target)) return false;
+    const detectedAt = Date.now();
+    const durationMinutes = Math.min(30, Math.max(1, Number(state.session.durationMinutes) || 10));
+    state.session.timerStartedAt = detectedAt;
+    state.session.expiresAt = detectedAt + durationMinutes * 60_000;
+    updateOverlaySessionDetails();
+    send({ type: "PERFORMANCE_AVAILABLE", detectedAt })?.then?.((response) => {
+      if (response?.session && state.session?.id === response.session.id) {
+        state.session = response.session;
+        updateOverlaySessionDetails();
+      }
+    });
+    return true;
+  }
+
+  function actionTitle(actionType) {
+    return ({
+      [Core.ACTIONS.OPEN_PERFORMANCES]: "Opening event dates",
+      [Core.ACTIONS.SELECT_PERFORMANCE]: "Selecting event date",
+      [Core.ACTIONS.SELECT_SEAT_MODE]: "Selecting seat mode",
+      [Core.ACTIONS.SELECT_AREA]: "Selecting ticket area",
+      [Core.ACTIONS.SET_QUANTITY]: "Setting ticket quantity",
+      [Core.ACTIONS.ACKNOWLEDGE_TERMS]: "Acknowledging ticket terms"
+    })[actionType] || "Concert Master active";
   }
 
   function reportDecision(decision, timings = {}) {
@@ -175,7 +308,7 @@
     return true;
   }
 
-  function present(decision, kind) {
+  function present(decision, kind, focusCandidate = false) {
     const signature = `${kind}:${decision.actionType}:${decision.targetKey}:${decision.reason || ""}`;
     const candidate = decision.candidate?._element;
     const targetIsStillHighlighted = state.highlighted === candidate
@@ -188,7 +321,7 @@
       state.highlighted = candidate;
       candidate.classList.add("cm-pilot-target");
       candidate.scrollIntoView?.({ block: "center", inline: "nearest", behavior: "auto" });
-      if (kind === "assist") candidate.focus?.({ preventScroll: false });
+      if (kind === "assist" || focusCandidate) candidate.focus?.({ preventScroll: false });
     }
     const labels = {
       dry: "Dry Run · proposed action",
@@ -219,6 +352,7 @@
   }
 
   function beginPending(decision, actionId, decisionAt) {
+    const waitsForSale = decision.actionType === Core.ACTIONS.OPEN_PERFORMANCES;
     const pending = {
       actionId,
       actionType: decision.actionType,
@@ -226,7 +360,7 @@
       areaKey: decision.actionType === Core.ACTIONS.SELECT_AREA ? decision.targetKey : undefined,
       dispatchedAt: Date.now(),
       dispatchedMonotonic: monotonicNow(),
-      deadlineAt: Date.now() + POSTCONDITION_TIMEOUT_MS
+      deadlineAt: waitsForSale ? null : Date.now() + POSTCONDITION_TIMEOUT_MS
     };
     state.pendingAction = pending;
     state.session.pendingAction = pending;
@@ -244,7 +378,7 @@
         at: Date.now()
       }
     });
-    state.deadlineTimer = setTimeout(schedule, POSTCONDITION_TIMEOUT_MS + 20);
+    if (!waitsForSale) state.deadlineTimer = setTimeout(schedule, POSTCONDITION_TIMEOUT_MS + 20);
   }
 
   function handleInventoryFailure(snapshot) {
@@ -275,7 +409,9 @@
   function processFrame(frameTime) {
     state.frameId = 0;
     if (!state.session || state.stopped) return;
-    if (Date.now() >= state.session.expiresAt) return terminalStop("Session expired.");
+    if (Number.isFinite(state.session.expiresAt) && Date.now() >= state.session.expiresAt) {
+      return terminalStop("Session expired.");
+    }
     if (Adapter.VERSION !== state.session.adapterVersion) return terminalStop("Adapter version mismatch.");
     if (location.origin !== state.session.origin || !Core.allowedOrigin(location.href)) return terminalStop("Origin changed.");
     if (document.visibilityState !== "visible") {
@@ -285,6 +421,10 @@
 
     const observationAt = performance.now();
     const snapshot = Adapter.collectSnapshot(document, location.href);
+    if (ensureCountdownStarted(snapshot)) {
+      schedulePoll();
+      return;
+    }
     const selectedBestModes = snapshot.seatModes.filter((mode) => {
       const label = Core.normalizedKey(mode.label);
       return mode.selected && (label === "電腦配位" || label === "best available");
@@ -310,9 +450,11 @@
 
     if (decision.kind === "stop") return terminalStop(decision.reason);
 
+    let completedActionType = null;
     if (state.pendingAction) {
       if (Adapter.postconditionMet(state.pendingAction, decision)) {
         const completed = state.pendingAction;
+        completedActionType = completed.actionType;
         state.pendingAction = null;
         state.session.pendingAction = null;
         state.locked = false;
@@ -332,9 +474,10 @@
             at: Date.now()
           }
         });
-      } else if (Date.now() >= state.pendingAction.deadlineAt) {
+      } else if (Number.isFinite(state.pendingAction.deadlineAt) && Date.now() >= state.pendingAction.deadlineAt) {
         return terminalStop(`Postcondition timed out after ${state.pendingAction.actionType}.`);
       } else {
+        schedulePoll();
         return;
       }
     }
@@ -347,19 +490,32 @@
     if (decision.kind === "handoff") {
       if (decision.terminal) return terminalStop(decision.reason);
       state.locked = true;
-      present(decision, "handoff");
+      const focusVerification = state.session.mode === Core.MODES.BOUNDED_AUTO
+        && completedActionType === Core.ACTIONS.ACKNOWLEDGE_TERMS
+        && decision.signal === "challenge";
+      present(decision, "handoff", focusVerification);
       reportHandoff(decision.signal || decision.reason, decision.terminal);
       return;
     }
     if (decision.kind === "wait") {
       state.stable = null;
-      ensureOverlay("active", "Concert Master armed", decision.reason);
+      ensureOverlay(
+        "active",
+        decision.state === Core.STATES.PERFORMANCE_WAITING ? "Waiting for ticket sales" : "Concert Master armed",
+        decision.reason
+      );
+      schedulePoll();
       return;
     }
 
     if (state.session.mode === Core.MODES.DRY_RUN) return present(decision, "dry");
     if (state.session.mode === Core.MODES.ASSIST) return present(decision, "assist");
     if (state.session.mode !== Core.MODES.BOUNDED_AUTO || state.locked) return;
+    ensureOverlay(
+      "active",
+      actionTitle(decision.actionType),
+      decision.reason || `${decision.actionType} → ${decision.candidate?.label || "target"}`
+    );
     if (decision.confidence < 0.98) return terminalStop("Classification confidence is below 0.98.");
     if (!actionPermissionGranted(decision)) {
       state.locked = true;
@@ -405,7 +561,10 @@
       schedule();
     });
     state.observer.observe(document, { childList: true, subtree: true, attributes: true });
-    ensureOverlay("active", "Concert Master armed", `${session.mode} · expires ${new Date(session.expiresAt).toLocaleTimeString()}`);
+    const timerDetail = Number.isFinite(session.expiresAt)
+      ? `${session.mode} · expires ${new Date(session.expiresAt).toLocaleTimeString()}`
+      : "Watching for the selected Find tickets button. The timer has not started.";
+    ensureOverlay("active", "Concert Master armed", timerDetail);
     schedule();
   }
 

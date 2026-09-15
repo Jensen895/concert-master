@@ -44,5 +44,8 @@ export interface ArmedSession {
   allowAreaFallback: boolean;
   inventoryAttemptCap: number;
   bestAvailableConfirmed: boolean;
-  expiresAt: number;
+  /** Countdown length selected by the user. It begins when the matching performance control appears. */
+  durationMinutes: number;
+  timerStartedAt: number | null;
+  expiresAt: number | null;
 }

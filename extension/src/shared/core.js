@@ -338,6 +338,14 @@
     return PERMISSIONS[actionType] || null;
   }
 
+  function targetPerformanceAppeared(snapshot, target) {
+    const showDate = calendarDateKey(target?.showDate);
+    if (!showDate) return false;
+    return (snapshot?.performances || []).some((performance) => (
+      performance.visible === true && calendarDateKey(performance.showDate || performance.label) === showDate
+    ));
+  }
+
   function actionId(pageGeneration, decision) {
     const targetKey = decision.targetKey || "none";
     return `${pageGeneration}:${decision.state}:${decision.actionType}:${targetKey}`;
@@ -383,6 +391,7 @@
     resolveAreaPlan,
     resolveTicketPlan,
     sanitizeTarget,
+    targetPerformanceAppeared,
     tixcraftPageIdentity
   });
 

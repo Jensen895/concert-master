@@ -26,6 +26,7 @@ function completeSnapshot(snapshot) {
     layoutSignature: null,
     ready: true,
     busy: false,
+    performanceListVisible: false,
     eventId: "demo",
     signals: {},
     entries: [],
@@ -34,6 +35,7 @@ function completeSnapshot(snapshot) {
     areas: [],
     tickets: [],
     acknowledgements: [],
+    verificationInputs: [],
     submits: [],
     ...snapshot,
     signals: { ...(snapshot.signals || {}) }
@@ -85,6 +87,7 @@ test("event entry requires an explicit performance-list postcondition", () => {
   const pending = { actionType: Core.ACTIONS.OPEN_PERFORMANCES };
   assert.equal(Adapter.postconditionMet(pending, { state: Core.STATES.EVENT_DETAIL }), false);
   assert.equal(Adapter.postconditionMet(pending, { state: Core.STATES.PERFORMANCE }), true);
+  assert.equal(Adapter.postconditionMet(pending, { state: Core.STATES.PERFORMANCE_WAITING }), true);
 });
 
 test("event identity is inherited from the starting detail-page URL", () => {
@@ -99,6 +102,26 @@ test("event identity is inherited from the starting detail-page URL", () => {
 
 test("English Buy Tickets is a supported purchase-entry label", () => {
   assert.equal(Adapter.isActionLabel("BUY TICKETS"), true);
+});
+
+test("an open event dropdown waits when Find tickets has not appeared", () => {
+  const decision = Adapter.decide(completeSnapshot({
+    routeKind: "detail",
+    layoutSignature: "detail-v1",
+    performanceListVisible: true,
+    entries: [{ key: "event:1", label: "立即購票", visible: true, enabled: true }]
+  }), target);
+  assert.equal(decision.kind, "wait");
+  assert.equal(decision.state, Core.STATES.PERFORMANCE_WAITING);
+});
+
+test("a performance page keeps waiting until its Find tickets control appears", () => {
+  const decision = Adapter.decide(completeSnapshot({
+    routeKind: "performance",
+    layoutSignature: "performance-v1"
+  }), target);
+  assert.equal(decision.kind, "wait");
+  assert.equal(decision.state, Core.STATES.PERFORMANCE_WAITING);
 });
 
 test("show date selects the correct row when an event has multiple dates", () => {
@@ -231,6 +254,12 @@ test("ticket setup runs before verification, then leaves verification and submit
       visible: true,
       enabled: true
     }],
+    verificationInputs: [{
+      key: "verification:TicketForm_verifyCode",
+      label: "Verification code",
+      visible: true,
+      enabled: true
+    }],
     submits: [{ key: "submit:1", label: "確認張數", visible: true, enabled: true }]
   };
 
@@ -246,6 +275,7 @@ test("ticket setup runs before verification, then leaves verification and submit
   assert.equal(decision.kind, "handoff");
   assert.equal(decision.signal, "challenge");
   assert.equal(decision.actionType, undefined);
+  assert.equal(decision.targetKey, "verification:TicketForm_verifyCode");
 
   base.signals.challenge = false;
   decision = Adapter.decide(completeSnapshot(base), target);
